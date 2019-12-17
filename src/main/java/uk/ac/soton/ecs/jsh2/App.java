@@ -10,6 +10,7 @@ import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.contour.Contour;
 import org.openimaj.image.contour.SuzukiContourProcessor;
+import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
@@ -27,7 +28,7 @@ public class App {
     String root = "D:/detect";
 
     public static void main( String[] args ) throws IOException {
-        File folder = new File("D:/detect/input/2");
+        File folder = new File("D:/detect/input/5");
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
@@ -45,8 +46,12 @@ public class App {
         //convert to hsv
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 
-        // get S channel
-        FImage s = hsv.getBand(1);
+
+
+
+        // get S channel and RESIZE
+        float scaleFactor = 800f/(float)frame.getWidth();
+        FImage s = hsv.getBand(1).processInplace(new ResizeProcessor(scaleFactor));
 
         FImage grey = s.threshold(0.07133f).inverse();
 //        display(grey);
@@ -73,7 +78,7 @@ public class App {
 
         System.out.println(max.calculateArea()+"| "+max.toString());
 
-        List<Point2d> bound = findBounding(fit.points);
+        List<Point2d> bound = findBounding(fit.points, scaleFactor);
 
         frame.drawPoints(fit.points, RGBColour.GREEN, 4);
 
@@ -93,7 +98,7 @@ public class App {
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
     }
 
-    private static List<Point2d> findBounding(List<Point2d> points) {
+    private static List<Point2d> findBounding(List<Point2d> points, float scale_factor) {
         float x_min = Float.MAX_VALUE;
         float x_max = -1;
         float y_min = Float.MAX_VALUE;
@@ -156,6 +161,18 @@ public class App {
         if(distance(r_tl, tl) > width/3) r_tl = tl;
         if(distance(r_br, br) > width/3) r_br = br;
         if(distance(r_tr, tr) > width/3) r_tr = tr;
+
+
+        // return original scale
+        r_tl.x /= scale_factor;
+        r_tl.y /= scale_factor;
+        r_tr.x /= scale_factor;
+        r_tr.y /= scale_factor;
+        r_bl.x /= scale_factor;
+        r_bl.y /= scale_factor;
+        r_br.x /= scale_factor;
+        r_br.y /= scale_factor;
+
 
         List<Point2d> res = new ArrayList<>();
         res.add(r_tl);
