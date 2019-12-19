@@ -7,6 +7,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="openimaj-test-project" />
+        <module name="test-openimaj" />
       </profile>
     </annotationProcessing>
   </component>
