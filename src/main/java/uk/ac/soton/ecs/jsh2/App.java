@@ -13,7 +13,6 @@ import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
 import org.openimaj.math.geometry.shape.Rectangle;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -166,6 +165,7 @@ public class App {
         Tetragram bound = findBounding(fit.points, scaleFactor);
 //        frame.drawPoints(fit.points, RGBColour.GREEN, 4);
 //
+
 //        frame.drawShape(max, 8, RGBColour.BLUE);
 //
 //        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
@@ -274,5 +274,4 @@ public class App {
 
         return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
     }
-
 }
