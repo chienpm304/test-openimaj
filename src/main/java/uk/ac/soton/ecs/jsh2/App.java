@@ -1,8 +1,5 @@
 package uk.ac.soton.ecs.jsh2;
 
-import com.google.gson.internal.$Gson$Preconditions;
-import org.apache.lucene.search.grouping.CollectedSearchGroup;
-import org.openimaj.image.DisplayUtilities;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -19,27 +16,58 @@ import org.openimaj.math.geometry.shape.Rectangle;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
+import java.util.function.DoubleToIntFunction;
 
 /**
  * OpenIMAJ Hello world!
  *
  */
 public class App {
+    public static final float THRESHOLD_BIN_INV = 0.07133f;
+    public static final float STANDARD_WIDTH = 600.0f;
+    public static final int S_CHANNEL_ID = 1;
     String root = "D:/detect";
 
     public static void main( String[] args ) throws IOException {
-        File folder = new File("D:/detect/input/5");
-        if(folder.exists() && folder.isDirectory())
-            for (final File file : folder.listFiles()) {
-                if(file.isFile())
-                    detectBox(file, folder);
-            }
+//        File folder = new File("D:/detect/input/all");
+//        if(folder.exists() && folder.isDirectory())
+//            for (final File file : folder.listFiles()) {
+//                if(file.isFile())
+//                    detectBox(file, folder);
+//            }
 
-//        detectBox(new File("D:/detect/input/4/3.jpg"), null);
+        File file = new File("D:/detect/input/4/5.jpg");
+        Tetragram bound = detectBox(file, null);
+        System.out.println("Bound:");
+        System.out.println(bound);
+
+        Tetragram dst = findDestinationRectangle(bound);
+        System.out.println("destimation rect:");
+        System.out.println(dst);
 
     }
 
-    private static void detectBox(File fin, File folder) throws IOException {
+    private static Tetragram findDestinationRectangle(Tetragram bound) {
+        Point2d tl = bound.getTopLeft();
+        Point2d tr = bound.getTopRight();
+        Point2d br = bound.getBottomRight();
+        Point2d bl = bound.getBottomLeft();
+
+        int newWidth = (int) Math.max(distance(br, bl), distance(tr, tl));
+        int newHeight = (int) Math.max(distance(tr, br), distance(tl, bl));
+
+        float[][] rect = new float[][]{
+                {0, 0},
+                {newWidth-1, 0},
+                {newWidth-1, newHeight-1},
+                {0, newHeight-1}
+        };
+
+        return new Tetragram(rect);
+    }
+
+    private static Tetragram detectBox(File fin, File folder) throws IOException {
         System.out.println("Processing "+fin.getName());
         MBFImage frame = ImageUtilities.readMBF(fin);
 
@@ -47,13 +75,13 @@ public class App {
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 
 
-
-
         // get S channel and RESIZE
-        float scaleFactor = 800f/(float)frame.getWidth();
-        FImage s = hsv.getBand(1).processInplace(new ResizeProcessor(scaleFactor));
+        float scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
 
-        FImage grey = s.threshold(0.07133f).inverse();
+        FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
+
+        FImage grey = s.threshold(THRESHOLD_BIN_INV).inverse();
 //        display(grey);
 
         Contour contour = SuzukiContourProcessor.findContours(grey);
@@ -78,27 +106,22 @@ public class App {
 
         System.out.println(max.calculateArea()+"| "+max.toString());
 
-        List<Point2d> bound = findBounding(fit.points, scaleFactor);
-
-        frame.drawPoints(fit.points, RGBColour.GREEN, 4);
-
+        Tetragram bound = findBounding(fit.points, scaleFactor);
+//        frame.drawPoints(fit.points, RGBColour.GREEN, 4);
+//
 //        frame.drawShape(max, 8, RGBColour.BLUE);
+//
+//        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getTopRight(), bound.getBottomLeft(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getBottomLeft(), bound.getBottomRight(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getBottomRight(), bound.getTopLeft(), 10, RGBColour.BLUE);
+//
+//        frame.drawPoints(bound.toList(), RGBColour.RED, 10);
+        return bound;
 
-        frame.drawLine(bound.get(0), bound.get(1), 10, RGBColour.BLUE);
-        frame.drawLine(bound.get(1), bound.get(2), 10, RGBColour.BLUE);
-        frame.drawLine(bound.get(2), bound.get(3), 10, RGBColour.BLUE);
-        frame.drawLine(bound.get(3), bound.get(0), 10, RGBColour.BLUE);
-
-        frame.drawPoints(bound, RGBColour.RED, 10);
-
-
-        System.out.println(bound);
-
-//        DisplayUtilities.display(frame);
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
     }
 
-    private static List<Point2d> findBounding(List<Point2d> points, float scale_factor) {
+    private static Tetragram findBounding(List<Point2d> points, float scale_factor) {
         float x_min = Float.MAX_VALUE;
         float x_max = -1;
         float y_min = Float.MAX_VALUE;
@@ -164,22 +187,21 @@ public class App {
 
 
         // return original scale
-        r_tl.x /= scale_factor;
-        r_tl.y /= scale_factor;
-        r_tr.x /= scale_factor;
-        r_tr.y /= scale_factor;
-        r_bl.x /= scale_factor;
-        r_bl.y /= scale_factor;
-        r_br.x /= scale_factor;
-        r_br.y /= scale_factor;
+        r_tl.x = (int)(r_tl.x / scale_factor);
+        r_tl.y = (int)(r_tl.y / scale_factor);
+
+        r_tr.x = (int)(r_tr.x / scale_factor);
+        r_tr.y = (int)(r_tr.y / scale_factor);
+
+        r_bl.x = (int)(r_bl.x / scale_factor);
+        r_bl.y = (int)(r_bl.y / scale_factor);
+
+        r_br.x = (int)(r_br.x / scale_factor);
+        r_br.y = (int)(r_br.y / scale_factor);
 
 
-        List<Point2d> res = new ArrayList<>();
-        res.add(r_tl);
-        res.add(r_tr);
-        res.add(r_br);
-        res.add(r_bl);
-        return res;
+        Tetragram bound = new Tetragram(r_tl, r_tr, r_br, r_bl);
+        return bound;
     }
 
     static Random rnd = new Random();
