@@ -8,16 +8,17 @@ import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.contour.Contour;
 import org.openimaj.image.contour.SuzukiContourProcessor;
+import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
 import org.openimaj.math.geometry.shape.Rectangle;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
-import java.util.function.DoubleToIntFunction;
 
 /**
  * OpenIMAJ Hello world!
@@ -25,32 +26,46 @@ import java.util.function.DoubleToIntFunction;
  */
 public class App {
     public static final float THRESHOLD_BIN_INV = 0.07133f;
-    public static final float STANDARD_WIDTH = 600.0f;
+    public static final float STANDARD_WIDTH = 512;
     public static final int S_CHANNEL_ID = 1;
+    private static float scaleFactor = 1.0f;
     String root = "D:/detect";
 
     public static void main( String[] args ) throws IOException {
-//        File folder = new File("D:/detect/input/all");
-//        if(folder.exists() && folder.isDirectory())
-//            for (final File file : folder.listFiles()) {
-//                if(file.isFile())
-//                    detectBox(file, folder);
-//            }
+        File folder = new File("D:/detect/input/4");
+        if(folder.exists() && folder.isDirectory())
+            for (final File file : folder.listFiles()) {
+                if(file.isFile())
+                    detectBox(file, folder);
+            }
 
-        File file = new File("D:/detect/input/4/5.jpg");
-        Tetragram originTetra = detectBox(file, null);
-        System.out.println("Bound:");
-        System.out.println(originTetra);
+//        File file = new File("D:/detect/input/4/rsz_t2.jpg");
+//        System.out.println("Processing "+file.getName());
+//        MBFImage frame = ImageUtilities.readMBF(file);
+//
+//        Tetragram originTetra = detectBox(frame, null);
+//        System.out.println("Bound:");
+//        System.out.println(originTetra);
+//
+//        Tetragram destTetra = findDestinationRectangle(originTetra);
+//        System.out.println("destimation rect:");
+//        System.out.println(destTetra);
+//
+//        int newWidth = (int) destTetra.getBottomRight().getX() + 1;
+//        int newHeight = (int) destTetra.getBottomRight().getY() + 1;
+//        System.out.println("New size" + newWidth+"x"+newHeight);
+//
+//        Matrix transformMatrix = getTransformMatrix(originTetra, destTetra);
+//
+//        System.out.println(transformMatrix.getArray());
+//
+//        MBFImage dstImg = transformImage(frame, transformMatrix, newWidth, newHeight);
+    }
 
-        Tetragram destTetra = findDestinationRectangle(originTetra);
-        System.out.println("destimation rect:");
-        System.out.println(destTetra);
-
-        Matrix transformMatrix = getTransformMatrix(originTetra, destTetra);
-
-        System.out.println(transformMatrix.getArray());
-
-
+    private static MBFImage transformImage(MBFImage frame, Matrix transformMatrix, int newWidth, int newHeight) {
+        MBFImage img = new MBFImage(newWidth, newHeight);
+//        img.processInplace(new ;
+        return null;
     }
 
     private static Matrix getTransformMatrix(Tetragram originTetra, Tetragram destTetra) {
@@ -103,7 +118,6 @@ public class App {
         return trf3x3;
     }
 
-
     private static Tetragram findDestinationRectangle(Tetragram bound) {
         Point2d tl = bound.getTopLeft();
         Point2d tr = bound.getTopRight();
@@ -124,25 +138,13 @@ public class App {
     }
 
     private static Tetragram detectBox(File fin, File folder) throws IOException {
-        System.out.println("Processing "+fin.getName());
+
         MBFImage frame = ImageUtilities.readMBF(fin);
 
-        //convert to hsv
-        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
-
-        // get S channel and RESIZE
-        float scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
-        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
-
-        FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
-
-        FImage grey = s.threshold(THRESHOLD_BIN_INV).inverse();
-//        display(grey);
+        FImage grey = applyCannyDetector(frame);
+        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/canny/"+fin.getName()));
 
         Contour contour = SuzukiContourProcessor.findContours(grey);
-//        System.out.println(contour);
-
 
         Rectangle max = new Rectangle(0,0, 1, 1);
         Polygon fit = contour.clone();
@@ -156,26 +158,64 @@ public class App {
             if(area > max.calculateArea() && area>1 && area < contour.calculateRegularBoundingBox().calculateArea()) {
                 max = box.clone();
                 fit = cnt.clone();
-
             }
         }
 
         System.out.println(max.calculateArea()+"| "+max.toString());
 
         Tetragram bound = findBounding(fit.points, scaleFactor);
-//        frame.drawPoints(fit.points, RGBColour.GREEN, 4);
-//
 
-//        frame.drawShape(max, 8, RGBColour.BLUE);
-//
-//        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
-//        frame.drawLine(bound.getTopRight(), bound.getBottomLeft(), 10, RGBColour.BLUE);
-//        frame.drawLine(bound.getBottomLeft(), bound.getBottomRight(), 10, RGBColour.BLUE);
-//        frame.drawLine(bound.getBottomRight(), bound.getTopLeft(), 10, RGBColour.BLUE);
-//
-//        frame.drawPoints(bound.toList(), RGBColour.RED, 10);
+        frame.drawPoint(fit.asPolygon().calculateCentroid(), RGBColour.RED, 20);
+
+//        frame.drawShape(max.scale(1.0f/scaleFactor);, 8, RGBColour.BLUE);
+
+        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
+        frame.drawLine(bound.getTopRight(), bound.getBottomRight(), 10, RGBColour.BLUE);
+        frame.drawLine(bound.getBottomRight(), bound.getBottomLeft(), 10, RGBColour.BLUE);
+        frame.drawLine(bound.getBottomLeft(), bound.getTopLeft(), 10, RGBColour.BLUE);
+
+        frame.drawPoints(bound.toList(), RGBColour.RED, 10);
+
+        frame.drawPoints(fit.points, RGBColour.ORANGE, 6);
+
+        System.out.println(bound);
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
         return bound;
+    }
 
+    private static FImage applyCannyDetector(MBFImage frame) {
+        CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.1f, 3.0f);
+        FImage grey = frame.flatten();
+
+        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+        System.out.println("scale: "+scaleFactor);
+
+        grey.processInplace(new ResizeProcessor(scaleFactor));
+        canny.processImage(grey);
+        return grey;
+    }
+
+    private static FImage applyCustomPreproccessing(MBFImage frame) {
+        //convert to hsv
+        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
+
+        // get S channel and RESIZE
+//        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+
+        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+        System.out.println("scale: "+scaleFactor);
+        FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
+
+        return s.threshold(THRESHOLD_BIN_INV).inverse();
+    }
+
+    private static List<Point2d> getOriginScale(List<Point2d> points, float scaleFactor) {
+        for (Point2d p: points) {
+            p.setX(p.getX() / scaleFactor);
+            p.setY(p.getY()/scaleFactor);
+        }
+        return points;
     }
 
     private static Tetragram findBounding(List<Point2d> points, float scale_factor) {
