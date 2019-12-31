@@ -4,6 +4,7 @@ import Jama.Matrix;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
+import org.openimaj.image.analysis.algorithm.histogram.HistogramAnalyser;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.contour.Contour;
@@ -15,6 +16,7 @@ import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
 import org.openimaj.math.geometry.shape.Rectangle;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -26,13 +28,13 @@ import java.util.List;
  */
 public class App {
     public static final float THRESHOLD_BIN_INV = 0.07133f;
-    public static final float STANDARD_WIDTH = 512;
+    public static final float STANDARD_WIDTH = 600;
     public static final int S_CHANNEL_ID = 1;
     private static float scaleFactor = 1.0f;
     String root = "D:/detect";
 
     public static void main( String[] args ) throws IOException {
-        File folder = new File("D:/detect/input/4");
+        File folder = new File("D:/detect/input/all");
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
@@ -141,14 +143,16 @@ public class App {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
 
-        FImage grey = applyCannyDetector(frame);
-        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/canny/"+fin.getName()));
+        FImage grey = applyCustomPreproccessing(frame);
+//        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/canny/"+fin.getName()));
 
         Contour contour = SuzukiContourProcessor.findContours(grey);
 
         Rectangle max = new Rectangle(0,0, 1, 1);
         Polygon fit = contour.clone();
 
+
+        FImage tmp = new FImage(grey.width, grey.height);
         for(int i = 0; i < contour.children.size(); i++){
 
             Contour cnt = contour.children.get(i);
@@ -158,8 +162,10 @@ public class App {
             if(area > max.calculateArea() && area>1 && area < contour.calculateRegularBoundingBox().calculateArea()) {
                 max = box.clone();
                 fit = cnt.clone();
+//                tmp.drawPoints(cnt.points, 1f, 1);
             }
         }
+//        ImageUtilities.write(tmp, new File(folder.getAbsolutePath()+"/contour/"+fin.getName()));
 
         System.out.println(max.calculateArea()+"| "+max.toString());
 
@@ -167,16 +173,17 @@ public class App {
 
         frame.drawPoint(fit.asPolygon().calculateCentroid(), RGBColour.RED, 20);
 
+
 //        frame.drawShape(max.scale(1.0f/scaleFactor);, 8, RGBColour.BLUE);
 
-        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
-        frame.drawLine(bound.getTopRight(), bound.getBottomRight(), 10, RGBColour.BLUE);
-        frame.drawLine(bound.getBottomRight(), bound.getBottomLeft(), 10, RGBColour.BLUE);
-        frame.drawLine(bound.getBottomLeft(), bound.getTopLeft(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getTopLeft(), bound.getTopRight(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getTopRight(), bound.getBottomRight(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getBottomRight(), bound.getBottomLeft(), 10, RGBColour.BLUE);
+//        frame.drawLine(bound.getBottomLeft(), bound.getTopLeft(), 10, RGBColour.BLUE);
 
-        frame.drawPoints(bound.toList(), RGBColour.RED, 10);
+        frame.drawPoints(bound.toList(), RGBColour.BLUE, 10);
 
-        frame.drawPoints(fit.points, RGBColour.ORANGE, 6);
+        frame.drawPoints(fit.points, RGBColour.GREEN, 10);
 
         System.out.println(bound);
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
@@ -184,7 +191,7 @@ public class App {
     }
 
     private static FImage applyCannyDetector(MBFImage frame) {
-        CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.1f, 3.0f);
+        CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.15f, 3.0f);
         FImage grey = frame.flatten();
 
         scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
@@ -206,6 +213,8 @@ public class App {
         scaleFactor = scaleFactor>1?1.0f:scaleFactor;
         System.out.println("scale: "+scaleFactor);
         FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
+
+//        s.analyseWith(new HistogramAnalyser(64));
 
         return s.threshold(THRESHOLD_BIN_INV).inverse();
     }
