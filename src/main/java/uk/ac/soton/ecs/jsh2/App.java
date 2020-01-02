@@ -163,10 +163,11 @@ public class App {
         TestHough houghLines = new TestHough();
         houghLines.analyseImage(grey);
 
-        while(houghLines.hasNext()){
+        Iterator iterator = houghLines.iterator();
+        while(iterator.hasNext()){
             Line2d line = houghLines.next();
-            if(line!=null)
-                frame.drawLine(houghLines.next(), 2, RGBColour.RED);
+            System.out.println(line.toString());
+            frame.drawLine(houghLines.next(), 2, RGBColour.RED);
         }
 
 //        List<Line2d> lines = houghLines.getBestLines( 4);

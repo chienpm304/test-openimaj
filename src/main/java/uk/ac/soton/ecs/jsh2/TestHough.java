@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class TestHough {
+public class TestHough implements Iterable<Line2d>, Iterator<Line2d>{
 
     private FImage accum;
     private int numberOfSegments;
@@ -85,6 +85,30 @@ public class TestHough {
         Line2d l = this.getBestLine(this.iteratorAccum, 0);
         this.iteratorAccum.setPixel(this.iteratorCurrentPix.x, this.iteratorCurrentPix.y, 0.0F);
         return l;
+    }
+
+    @Override
+    public void remove() {
+        this.iteratorAccum.setPixel(this.iteratorCurrentPix.x, this.iteratorCurrentPix.y, 0.0F);
+    }
+
+    @Override
+    public Iterator<Line2d> iterator() {
+        this.clearIterator();
+        this.checkIteratorSetup();
+        return this;
+    }
+
+    private void checkIteratorSetup() {
+        if (this.iteratorAccum == null) {
+            this.iteratorAccum = this.accum.clone();
+        }
+
+    }
+
+    public void clearIterator() {
+        this.iteratorAccum = null;
+        this.iteratorCurrentPix = null;
     }
 
 
