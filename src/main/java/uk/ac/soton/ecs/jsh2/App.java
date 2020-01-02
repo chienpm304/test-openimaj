@@ -4,6 +4,7 @@ import Jama.Matrix;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
+import org.openimaj.image.analysis.algorithm.HoughLines;
 import org.openimaj.image.analysis.algorithm.histogram.HistogramAnalyser;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
@@ -11,6 +12,7 @@ import org.openimaj.image.contour.Contour;
 import org.openimaj.image.contour.SuzukiContourProcessor;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
+import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
@@ -142,12 +144,40 @@ public class App {
     private static Tetragram detectBox(File fin, File folder) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
+        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+        System.out.println("scale: "+scaleFactor);
+        frame.processInplace(new ResizeProcessor(scaleFactor));
 
-        FImage grey = applyCustomPreproccessing(frame);
-//        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/canny/"+fin.getName()));
+        FImage grey = applyCannyDetector(frame);
+        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
+//        Tetragram bound = findBoundingBoxByContour(frame, grey);
+        Tetragram bound = findBoundingBoxByHough(frame, grey);
+
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
+        return null;
+    }
+
+    private static Tetragram findBoundingBoxByHough(MBFImage frame, FImage grey) {
+        TestHough houghLines = new TestHough();
+        houghLines.analyseImage(grey);
+
+        while(houghLines.hasNext()){
+            Line2d line = houghLines.next();
+            if(line!=null)
+                frame.drawLine(houghLines.next(), 2, RGBColour.RED);
+        }
+
+//        List<Line2d> lines = houghLines.getBestLines( 4);
+//        for(Line2d l: lines){
+//            frame.drawLine(l, 2, RGBColour.RED);
+//        }
+        return null;
+    }
+
+    private static Tetragram findBoundingBoxByContour(MBFImage frame, FImage grey) {
         Contour contour = SuzukiContourProcessor.findContours(grey);
-
         Rectangle max = new Rectangle(0,0, 1, 1);
         Polygon fit = contour.clone();
 
@@ -186,7 +216,6 @@ public class App {
         frame.drawPoints(fit.points, RGBColour.GREEN, 10);
 
         System.out.println(bound);
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
         return bound;
     }
 
@@ -194,11 +223,11 @@ public class App {
         CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.15f, 3.0f);
         FImage grey = frame.flatten();
 
-        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
-        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
-        System.out.println("scale: "+scaleFactor);
+//        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+//        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+//        System.out.println("scale: "+scaleFactor);
+//        grey.processInplace(new ResizeProcessor(scaleFactor));
 
-        grey.processInplace(new ResizeProcessor(scaleFactor));
         canny.processImage(grey);
         return grey;
     }
