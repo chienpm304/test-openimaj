@@ -22,11 +22,11 @@ public class App {
 
     public static void main( String[] args ) throws IOException {
         File folder = new File("/home/cpu11427/chienpm/WhitePaper/test-threshold/input/dataset_03/original");
-        if(folder.exists() && folder.isDirectory())
-            for (final File file : folder.listFiles()) {
-                if(file.isFile())
-                    detectBox(file, folder);
-            }
+//        if(folder.exists() && folder.isDirectory())
+//            for (final File file : folder.listFiles()) {
+//                if(file.isFile())
+//                    detectBox(file, folder);
+//            }
 
 
         File input_folder = new File("/home/cpu11427/chienpm/WhitePaper/test-threshold/input/dataset_03/original/rsz_t2.jpg");
@@ -39,7 +39,6 @@ public class App {
         System.out.println("Processing "+fin.getName());
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-
 
 
         //convert to hsv
