@@ -158,7 +158,7 @@ public class App {
         frame.drawPoints(contour, RGBColour.GREEN, 4);
 
         HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height, 1,
-                Math.PI/360, 50, 230, 250, 50);
+                Math.PI/180, 80, 150, 175, 20);
 
         List<Line2d> lines = ht.getLines();
 
@@ -166,7 +166,7 @@ public class App {
 
         for(Line2d line: lines){
             System.out.println(line.toString());
-            frame.drawLine(line, 2, RGBColour.RED);
+            frame.drawLine(line, 3, RGBColour.RED);
         }
 
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
@@ -192,15 +192,7 @@ public class App {
     }
 
     private static Tetragram findBoundingBoxByHough(MBFImage frame, FImage grey) {
-        TestHough houghLines = new TestHough();
-        houghLines.analyseImage(grey);
 
-        Iterator iterator = houghLines.iterator();
-        while(iterator.hasNext()){
-            Line2d line = houghLines.next();
-            System.out.println(line.toString());
-            frame.drawLine(houghLines.next(), 2, RGBColour.RED);
-        }
 
 //        List<Line2d> lines = houghLines.getBestLines( 4);
 //        for(Line2d l: lines){

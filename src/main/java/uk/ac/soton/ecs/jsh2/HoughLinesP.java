@@ -1,9 +1,7 @@
 package uk.ac.soton.ecs.jsh2;
 
-import net.sf.jasperreports.engine.util.JRStyledText;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
-import org.openimaj.math.geometry.point.Point2dImpl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,12 +18,12 @@ public class HoughLinesP {
     int lineLength;
     int lineGap;
     int linesMax;
-    private int numAngleCells;
-    private double[] cosCache;
-    private double[] sinCache;
+    private int numangle;
+    private float[] cosCache;
+    private float[] sinCache;
     private boolean[] mask;
     private int[][] accum;
-    private int numRho;
+    private int numrho;
 
     public HoughLinesP(List<Point2d> points,
                        int width,
@@ -50,23 +48,23 @@ public class HoughLinesP {
     }
 
     private void initialize() {
-        this.numAngleCells = (int)Math.round(Math.PI/theta);
-        this.numRho = (int) Math.round(((width + height) * 2 + 1) / rho);
+        this.numangle = (int)Math.round(Math.PI / theta);
+        this.numrho = (int) Math.round(((width + height) * 2 + 1) / rho);
 
         //todo: test length of accum
-        this.accum = new int[numAngleCells][]; //numRho * 2
+        this.accum = new int[numangle][]; //numRho
 //        Arrays.fill(this.accum, false);
 
         this.mask = new boolean[width * height];
         Arrays.fill(this.mask, false);
 
         //nonZeroPoints
-        this.cosCache = new double[numAngleCells];
-        this.sinCache = new double[numAngleCells];
+        this.cosCache = new float[numangle];
+        this.sinCache = new float[numangle];
 
-        for(int i = 0; i < numAngleCells; i++){
-            cosCache[i] = Math.cos(i*theta)/rho;
-            sinCache[i] = Math.sin(i*theta)/rho;
+        for(int i = 0; i < numangle; i++){
+            cosCache[i] = (float) (Math.cos((double)i * theta) / rho);
+            sinCache[i] = (float) (Math.sin((double)i * theta) / rho);
         }
 
         // stage 1. collect non-zero image points
@@ -98,15 +96,15 @@ public class HoughLinesP {
             int maxThetaIndex = 0;
 
             //update accumulator, find the most probable line
-            for(int thetaIndex = 0; thetaIndex < numAngleCells; thetaIndex++){
+            for(int thetaIndex = 0; thetaIndex < numangle; thetaIndex++){
                 int rho = (int)Math.round(col * cosCache[thetaIndex] + row * sinCache[thetaIndex]);
-                rho += (numRho - 1) / 2;
+                rho += (numrho - 1) / 2;
 
-                if(rho >= numRho*2)
+                if(rho >= numrho)
                     throw new RuntimeException("rho out of index");
 
                 if (accum[thetaIndex]==null) {
-                    accum[thetaIndex] = new int[numRho * 2];
+                    accum[thetaIndex] = new int[numrho];
                     Arrays.fill(accum[thetaIndex], 0);
                 }
                 if (accum[thetaIndex][rho] == 0) {
@@ -130,7 +128,7 @@ public class HoughLinesP {
             int[][] lineEnds = new int[2][2];
             int shift = 16;
             double a = -sinCache[maxThetaIndex];
-            double b = -cosCache[maxThetaIndex];
+            double b = cosCache[maxThetaIndex];
             int x0 = col;
             int y0 = row;
             int dx0;
@@ -228,11 +226,11 @@ public class HoughLinesP {
                         if (goodLine) {
                             // Since we decided on this line as authentic, remove this pixel's
                             // weights for all possible angles from the accumulator array
-                            for (int thetaIndex = 0; thetaIndex < numAngleCells; thetaIndex++) {
+                            for (int thetaIndex = 0; thetaIndex < numangle; thetaIndex++) {
                                 int rho = (int) Math.round(
                                         j1 * cosCache[thetaIndex] + i1 * sinCache[thetaIndex]
                                 );
-                                rho += (numRho - 1) / 2;
+                                rho += (numrho - 1) / 2;
                                 if (accum[thetaIndex]!=null && accum[thetaIndex][rho] != 0) {
                                     accum[thetaIndex][rho]--;
                                 }
