@@ -12,6 +12,7 @@ import org.openimaj.image.contour.Contour;
 import org.openimaj.image.contour.SuzukiContourProcessor;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
+import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
@@ -37,7 +38,7 @@ public class App {
     private static float scaleFactor = 1.0f;
 
     public static void main( String[] args ) throws IOException {
-        File folder = new File(LINUX_DIR);
+        File folder = new File(WINDOW_DIR);
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
@@ -144,8 +145,8 @@ public class App {
     private static Tetragram detectBox(File fin, File folder) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
-        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+//        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+//        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
         System.out.println("processing: " + fin.getName() +"...");
 //        System.out.println("scale: "+scaleFactor);
 //        frame.processInplace(new ResizeProcessor(scaleFactor));
@@ -156,17 +157,27 @@ public class App {
         List<Point2d> contour = getContour(grey);
         System.out.println("contour: "+contour.size());
         frame.drawPoints(contour, RGBColour.GREEN, 4);
-
-        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height, 1,
-                Math.PI/180, 80, 150, 175, 20);
+        Point2d center = new Polygon(contour).calculateCentroid();
+        frame.drawPoint(center, RGBColour.RED, 20);
+        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  50, 150, 20);
 
         List<Line2d> lines = ht.getLines();
 
         System.out.println(lines.size() + " lines");
+        frame.drawText(lines.size()+"", (int)center.getX(),
+                (int)center.getY(),
+                HersheyFont.ROMAN_DUPLEX,
+                80,
+                RGBColour.RED);
 
         for(Line2d line: lines){
             System.out.println(line.toString());
-            frame.drawLine(line, 3, RGBColour.RED);
+            frame.drawLine(line, 6, RGBColour.BLUE);
+            frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
+                    (int)line.calculateCentroid().getY()+80,
+                    HersheyFont.ROMAN_DUPLEX,
+                    60,
+                    RGBColour.BLUE);
         }
 
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
@@ -262,11 +273,11 @@ public class App {
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 
         // get S channel and RESIZE
-//        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
 
-//        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
-//        System.out.println("scale: "+scaleFactor);
-        FImage s = hsv.getBand(S_CHANNEL_ID);//.processInplace(new ResizeProcessor(scaleFactor));
+        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
+        System.out.println("scale: "+scaleFactor);
+        FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
 
 //        s.analyseWith(new HistogramAnalyser(64));
 

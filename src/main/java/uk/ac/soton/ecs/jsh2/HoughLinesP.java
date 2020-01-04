@@ -9,15 +9,15 @@ import java.util.Collections;
 import java.util.List;
 
 public class HoughLinesP {
-    List<Point2d> nonZeroPoints;
-    int width;
-    int height;
-    double rho = 1;
-    double theta = Math.PI / 180d;
-    int threshold;
-    int lineLength;
-    int lineGap;
-    int linesMax;
+    private List<Point2d> nonZeroPoints;
+    private int width;
+    private int height;
+    private double rho = 1;
+    private double theta = Math.PI / 180d;
+    private int threshold = 50;
+    private int lineLength = 150;
+    private int lineGap = 150;
+    private int linesMax = 20;
     private int numangle;
     private float[] cosCache;
     private float[] sinCache;
@@ -28,20 +28,14 @@ public class HoughLinesP {
     public HoughLinesP(List<Point2d> points,
                        int width,
                        int height,
-                       double rho,
-                       double theta,
                        int threshold,
                        int lineLength,
-                       int lineGap,
                        int linesMax) {
         this.nonZeroPoints = points;
         this.width = width;
         this.height = height;
-        this.rho = rho;
-        this.theta = theta;
         this.threshold = threshold;
         this.lineLength = lineLength;
-        this.lineGap = lineGap;
         this.linesMax = linesMax;
 
         initialize();
@@ -51,9 +45,7 @@ public class HoughLinesP {
         this.numangle = (int)Math.round(Math.PI / theta);
         this.numrho = (int) Math.round(((width + height) * 2 + 1) / rho);
 
-        //todo: test length of accum
-        this.accum = new int[numangle][]; //numRho
-//        Arrays.fill(this.accum, false);
+        this.accum = new int[numangle][];
 
         this.mask = new boolean[width * height];
         Arrays.fill(this.mask, false);
