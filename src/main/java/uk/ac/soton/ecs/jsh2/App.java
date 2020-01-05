@@ -4,8 +4,6 @@ import Jama.Matrix;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
-import org.openimaj.image.analysis.algorithm.HoughLines;
-import org.openimaj.image.analysis.algorithm.histogram.HistogramAnalyser;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.contour.Contour;
@@ -19,7 +17,6 @@ import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
 import org.openimaj.math.geometry.shape.Rectangle;
 
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -35,6 +32,7 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
     public static final String WINDOW_DIR = "D:/detect/input/all";
     private static final String LINUX_DIR = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/all";
+    public static final int THRESHOLD_STEP = 50;
     private static float scaleFactor = 1.0f;
 
     public static void main( String[] args ) throws IOException {
@@ -145,24 +143,174 @@ public class App {
     private static Tetragram detectBox(File fin, File folder) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-//        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
-//        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
         System.out.println("processing: " + fin.getName() +"...");
-//        System.out.println("scale: "+scaleFactor);
-//        frame.processInplace(new ResizeProcessor(scaleFactor));
 
         FImage grey = applyCustomPreproccessing(frame);
 //        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Point2d> contour = getContour(grey);
+
         System.out.println("contour: "+contour.size());
         frame.drawPoints(contour, RGBColour.GREEN, 4);
+
         Point2d center = new Polygon(contour).calculateCentroid();
+
         frame.drawPoint(center, RGBColour.RED, 20);
-        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  50, 150, 20);
+        List<Line2d> lines = getLines(grey, contour);
+//        lines = removeSimilarLines(lines);
+//        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
 
-        List<Line2d> lines = ht.getLines();
+        drawLines(frame, center, lines);
 
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
+        return null;
+    }
+
+    private static List<Line2d> removeSimilarLines(List<Line2d> lines) {
+        Line2d l1, l2;
+        for(int i = 0; i < lines.size()-1; i++){
+            l1 = lines.get(i);
+            for(int j = i+1; j < lines.size(); j++){
+                l2 = lines.get(j);
+                if(l2.distanceToLine(l1.begin) < 100
+                        && l2.distanceToLine(l1.end) < 100){
+                    if(l1.calculateLength() < l2.calculateLength())
+                        Collections.swap(lines, i, j);
+                    lines.remove(j);
+                    j--;
+                }
+            }
+        }
+        return lines;
+    }
+
+    private static List<Line2d> getBounding(int width, int height, Point2d center, List<Line2d> lines) {
+
+        Line2d top = null, right = null, bottom = null, left = null;
+        top = findTop(width, height, center, lines);
+        lines.remove(top);
+
+        right = findRight(width, height, center, lines);
+        lines.remove(right);
+
+        bottom = findBottom(width, height, center, lines);
+        lines.remove(bottom);
+
+        left = findLeft(width, height, center, lines);
+        lines.remove(left);
+
+        System.out.println("Top: "+top);
+        System.out.println("Bottom: "+bottom);
+        System.out.println("Right: "+right);
+        System.out.println("Left: "+left);
+
+        List<Line2d> line2ds = new ArrayList<>();
+        line2ds.add(top);
+        line2ds.add(right);
+        line2ds.add(bottom);
+        line2ds.add(left);
+
+        return line2ds;
+    }
+
+    private static Line2d findTop(int width, int height, Point2d center, List<Line2d> lines) {
+        double max = -1;
+        int threshold = 0;
+        Line2d top = null;
+        while (top == null && threshold < height/3){
+            max = -1;
+            for (Line2d l : lines) {
+                if (l.begin.getY() < center.getY() + threshold
+                        && l.end.getY() < center.getY() + threshold
+                        && Math.abs(l.begin.getY() - l.end.getY()) < height/1.5f) {
+//                ){
+                    if (l.calculateLength() > max) {
+                        max = l.calculateLength();
+                        top = l;
+                    }
+                }
+            }
+            threshold += THRESHOLD_STEP;
+        }
+        if(top == null)
+            top = new Line2d(0,0, width-1, 0);
+        return top;
+    }
+
+    private static Line2d findRight(int width, int height, Point2d center, List<Line2d> lines) {
+        double max;
+        int threshold = 0;
+        Line2d right = null;
+        while (right == null && threshold < width/3){
+            max = -1;
+            for (Line2d l : lines) {
+                if (l.begin.getX() > center.getX() - threshold
+                        && l.end.getX() > center.getX()-threshold
+                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
+//                ){
+                    if (l.calculateLength() > max) {
+                        max = l.calculateLength();
+                        right = l;
+                    }
+                }
+            }
+            threshold += THRESHOLD_STEP;
+        }
+        if(right == null)
+            right = new Line2d(width-1,0, width-1, height-1);
+        return right;
+    }
+
+    private static Line2d findBottom(int width, int height, Point2d center, List<Line2d> lines) {
+        double max;
+        int threshold = 0;
+        Line2d bottom = null;
+        while (bottom == null && threshold < height/3){
+            max = -1;
+            for (Line2d l : lines) {
+                if (l.begin.getY() > center.getY() - threshold
+                        && l.end.getY() > center.getY() - threshold
+                        && Math.abs(l.begin.getY()-l.end.getY())<height/1.5f) {
+//                ){
+                    if (l.calculateLength() > max) {
+                        max = l.calculateLength();
+                        bottom = l;
+                    }
+                }
+            }
+            threshold += THRESHOLD_STEP;
+        }
+        if(bottom == null)
+            bottom = new Line2d(0,height-1, width-1, height-1);
+        return bottom;
+    }
+
+    private static Line2d findLeft(int width, int height, Point2d center, List<Line2d> lines) {
+        double max;
+        int threshold = 0;
+        Line2d left = null;
+        while (left == null && threshold < width/3){
+            max = -1;
+            for (Line2d l : lines) {
+                if (l.begin.getX() < center.getX() + threshold
+                        && l.end.getX() < center.getX() + threshold
+                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
+//                ){
+                    if (l.calculateLength() > max) {
+                        max = l.calculateLength();
+                        left = l;
+                    }
+                }
+            }
+            threshold += THRESHOLD_STEP;
+        }
+        if(left == null)
+            left = new Line2d(0, 0, 0, height-1);
+        return left;
+    }
+
+
+    private static void drawLines(MBFImage frame, Point2d center, List<Line2d> lines) {
         System.out.println(lines.size() + " lines");
         frame.drawText(lines.size()+"", (int)center.getX(),
                 (int)center.getY(),
@@ -172,16 +320,18 @@ public class App {
 
         for(Line2d line: lines){
             System.out.println(line.toString());
-            frame.drawLine(line, 6, RGBColour.BLUE);
+            frame.drawLine(line, 3, RGBColour.BLUE);
             frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
                     (int)line.calculateCentroid().getY()+80,
                     HersheyFont.ROMAN_DUPLEX,
                     60,
                     RGBColour.BLUE);
         }
+    }
 
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
-        return null;
+    private static List<Line2d> getLines(FImage grey, List<Point2d> contour) {
+        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  80, 150, 20);
+        return ht.getLines();
     }
 
     private static List<Point2d> getContour(FImage grey) {

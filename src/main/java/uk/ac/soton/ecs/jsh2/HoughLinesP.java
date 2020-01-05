@@ -182,9 +182,11 @@ public class HoughLinesP {
                 }
             }
 
-            final boolean goodLine = Math.abs(lineEnds[1][0] - lineEnds[0][0]) >= lineLength ||
+            final boolean
+                    goodLine = Math.abs(lineEnds[1][0] - lineEnds[0][0]) >= lineLength ||
                     Math.abs(lineEnds[1][1] - lineEnds[0][1]) >= lineLength;
 
+//            goodLine = new Line2d(lineEnds[0][0], lineEnds[0][1], lineEnds[1][0], lineEnds[1][1]).calculateLength() >= lineLength;
 
             for (int k = 0; k < 2; k++) {
                 int x = x0;
