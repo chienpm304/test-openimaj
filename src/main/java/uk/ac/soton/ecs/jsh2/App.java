@@ -1,7 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
 import Jama.Matrix;
-import org.openimaj.image.DisplayUtilities;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -158,29 +157,41 @@ public class App {
         Point2d center = new Polygon(contour).calculateCentroid();
 
         frame.drawPoint(center, RGBColour.RED, 20);
-        List<Line2d> lines = getLines(grey, contour);
+        List<Line2d> lines = getLinesUsingHoughTransformP(grey, contour);
 
-//        lines = removeSimilarLines(lines);
+
+
+        lines = removeSimilarLines(lines);
+        drawLines(frame, center, lines);
 //        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
 
-        drawLines(frame, center, lines);
 
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
+
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/removed_similar/"+fin.getName()));
         return null;
     }
-
+    private static final int LINE_GAP_REMOVAL = 100;
     private static List<Line2d> removeSimilarLines(List<Line2d> lines) {
         Line2d l1, l2;
         for(int i = 0; i < lines.size()-1; i++){
             l1 = lines.get(i);
             for(int j = i+1; j < lines.size(); j++){
                 l2 = lines.get(j);
-                if(l2.distanceToLine(l1.begin) < 100
-                        && l2.distanceToLine(l1.end) < 100){
-                    if(l1.calculateLength() < l2.calculateLength())
+                if(l1 != l2
+                        && l2.distanceToLine(l1.begin) < LINE_GAP_REMOVAL
+                        && l2.distanceToLine(l1.end) < LINE_GAP_REMOVAL
+                        && l1.distanceToLine(l2.begin) < LINE_GAP_REMOVAL
+                        && l1.distanceToLine(l2.end) < LINE_GAP_REMOVAL
+                ){
+                    if(l1.calculateLength() < l2.calculateLength()) {
                         Collections.swap(lines, i, j);
-                    lines.remove(j);
-                    j--;
+                        lines.remove(j);
+                        j = i;
+                        l1 = lines.get(i);
+                    }else{
+                        lines.remove(j);
+                        j--;
+                    }
                 }
             }
         }
@@ -334,7 +345,7 @@ public class App {
         }
     }
 
-    private static List<Line2d> getLines(FImage grey, List<Point2d> contour) {
+    private static List<Line2d> getLinesUsingHoughTransformP(FImage grey, List<Point2d> contour) {
         HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  65, 150, 20);
         return ht.getLines();
     }
