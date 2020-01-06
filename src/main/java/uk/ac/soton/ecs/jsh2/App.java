@@ -1,6 +1,7 @@
 package uk.ac.soton.ecs.jsh2;
 
 import Jama.Matrix;
+import org.openimaj.image.DisplayUtilities;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -33,10 +34,11 @@ public class App {
     public static final String WINDOW_DIR = "D:/detect/input/all";
     private static final String LINUX_DIR = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/all";
     public static final int THRESHOLD_STEP = 50;
+    public static final float NEW_THRESHOLD = 0.1f;
     private static float scaleFactor = 1.0f;
 
     public static void main( String[] args ) throws IOException {
-        File folder = new File(WINDOW_DIR);
+        File folder = new File(LINUX_DIR);
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
@@ -146,7 +148,7 @@ public class App {
         System.out.println("processing: " + fin.getName() +"...");
 
         FImage grey = applyCustomPreproccessing(frame);
-//        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
+        ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Point2d> contour = getContour(grey);
 
@@ -157,6 +159,7 @@ public class App {
 
         frame.drawPoint(center, RGBColour.RED, 20);
         List<Line2d> lines = getLines(grey, contour);
+
 //        lines = removeSimilarLines(lines);
 //        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
 
@@ -321,6 +324,8 @@ public class App {
         for(Line2d line: lines){
             System.out.println(line.toString());
             frame.drawLine(line, 3, RGBColour.BLUE);
+            frame.drawPoint(line.begin, RGBColour.RED, 5);
+            frame.drawPoint(line.end, RGBColour.YELLOW, 5);
             frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
                     (int)line.calculateCentroid().getY()+80,
                     HersheyFont.ROMAN_DUPLEX,
@@ -330,7 +335,7 @@ public class App {
     }
 
     private static List<Line2d> getLines(FImage grey, List<Point2d> contour) {
-        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  80, 150, 20);
+        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  65, 150, 20);
         return ht.getLines();
     }
 
@@ -428,10 +433,10 @@ public class App {
         scaleFactor = scaleFactor>1?1.0f:scaleFactor;
         System.out.println("scale: "+scaleFactor);
         FImage s = hsv.getBand(S_CHANNEL_ID).processInplace(new ResizeProcessor(scaleFactor));
-
+//        DisplayUtilities.display(s);
 //        s.analyseWith(new HistogramAnalyser(64));
 
-        return s.threshold(THRESHOLD_BIN_INV).inverse();
+        return s.threshold(NEW_THRESHOLD).inverse();
     }
 
     private static List<Point2d> getOriginScale(List<Point2d> points, float scaleFactor) {

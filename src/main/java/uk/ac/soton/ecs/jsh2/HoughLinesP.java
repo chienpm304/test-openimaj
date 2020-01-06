@@ -16,7 +16,7 @@ public class HoughLinesP {
     private double theta = Math.PI / 180d;
     private int threshold = 50;
     private int lineLength = 150;
-    private int lineGap = 150;
+    private int lineGap = 175;
     private int linesMax = 20;
     private int numangle;
     private float[] cosCache;
