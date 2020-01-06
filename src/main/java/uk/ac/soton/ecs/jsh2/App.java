@@ -160,16 +160,24 @@ public class App {
         List<Line2d> lines = getLinesUsingHoughTransformP(grey, contour);
 
 
-
         lines = removeSimilarLines(lines);
-        drawLines(frame, center, lines);
-//        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
+//        drawLines(frame, center, lines);
 
+
+        Tetragram bounding = getBounding(grey.width, grey.height, center, lines);
+        System.out.println("bounding: "+bounding.toString());
+//        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
+        drawBounds(frame, bounding);
 
 
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/removed_similar/"+fin.getName()));
-        return null;
+        return bounding;
     }
+
+    private static void drawBounds(MBFImage frame, Tetragram bounding) {
+
+    }
+
     private static final int LINE_GAP_REMOVAL = 100;
     private static List<Line2d> removeSimilarLines(List<Line2d> lines) {
         Line2d l1, l2;
@@ -198,7 +206,7 @@ public class App {
         return lines;
     }
 
-    private static List<Line2d> getBounding(int width, int height, Point2d center, List<Line2d> lines) {
+    private static Tetragram getBounding(int width, int height, Point2d center, List<Line2d> lines) {
 
         Line2d top = null, right = null, bottom = null, left = null;
         top = findTop(width, height, center, lines);
@@ -218,13 +226,31 @@ public class App {
         System.out.println("Right: "+right);
         System.out.println("Left: "+left);
 
-        List<Line2d> line2ds = new ArrayList<>();
-        line2ds.add(top);
-        line2ds.add(right);
-        line2ds.add(bottom);
-        line2ds.add(left);
+//        List<Line2d> line2ds = new ArrayList<>();
+//        line2ds.add(top);
+//        line2ds.add(right);
+//        line2ds.add(bottom);
+//        line2ds.add(left);
+//
+//        return line2ds;
 
-        return line2ds;
+        Point2d topLeft = findIntersection(top, left, width, height);
+        Point2d topRight = findIntersection(top, left, width, height);
+        Point2d bottomRight = findIntersection(top, left, width, height);
+        Point2d bottomLeft = findIntersection(top, left, width, height);
+
+        return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
+    }
+
+    private static Point2d findIntersection(Line2d line1, Line2d line2, int maxWidth, int maxHeight) {
+        Point2d p = new Point2dImpl(0,0);
+        Line2d.IntersectionResult result = line1.getIntersection(line2);
+        if(result.type == Line2d.IntersectionType.INTERSECTING){
+            p = result.intersectionPoint;
+        }else{
+            System.out.println("Not intersecting: "+line1+" with "+line2);
+        }
+        return p;
     }
 
     private static Line2d findTop(int width, int height, Point2d center, List<Line2d> lines) {
@@ -236,8 +262,8 @@ public class App {
             for (Line2d l : lines) {
                 if (l.begin.getY() < center.getY() + threshold
                         && l.end.getY() < center.getY() + threshold
-                        && Math.abs(l.begin.getY() - l.end.getY()) < height/1.5f) {
-//                ){
+//                        && Math.abs(l.begin.getY() - l.end.getY()) < height/1.5f) {
+                ){
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         top = l;
@@ -260,8 +286,8 @@ public class App {
             for (Line2d l : lines) {
                 if (l.begin.getX() > center.getX() - threshold
                         && l.end.getX() > center.getX()-threshold
-                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
-//                ){
+//                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
+                ){
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         right = l;
@@ -284,8 +310,8 @@ public class App {
             for (Line2d l : lines) {
                 if (l.begin.getY() > center.getY() - threshold
                         && l.end.getY() > center.getY() - threshold
-                        && Math.abs(l.begin.getY()-l.end.getY())<height/1.5f) {
-//                ){
+//                        && Math.abs(l.begin.getY()-l.end.getY())<height/1.5f) {
+                ){
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         bottom = l;
@@ -308,8 +334,8 @@ public class App {
             for (Line2d l : lines) {
                 if (l.begin.getX() < center.getX() + threshold
                         && l.end.getX() < center.getX() + threshold
-                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
-//                ){
+//                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
+                ){
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         left = l;
