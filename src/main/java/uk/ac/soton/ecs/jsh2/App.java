@@ -36,34 +36,25 @@ public class App {
     public static final float NEW_THRESHOLD = 0.1f;
     private static float scaleFactor = 1.0f;
 
+    public static void testIntersect(){
+        Line2d.IntersectionResult res =
+                MyHelper.findIntersection(
+                        new Line2d(6, 5, 8, 5),
+                        new Line2d(1, 5, 3, 5));
+        System.out.println(res.type);
+        System.out.println(res.intersectionPoint);
+    }
+
     public static void main( String[] args ) throws IOException {
-        File folder = new File(LINUX_DIR);
-        if(folder.exists() && folder.isDirectory())
-            for (final File file : folder.listFiles()) {
-                if(file.isFile())
-                    detectBox(file, folder);
-            }
-//        File file = new File("D:/detect/input/4/rsz_t2.jpg");
-//        System.out.println("Processing "+file.getName());
-//        MBFImage frame = ImageUtilities.readMBF(file);
+//        File folder = new File(WINDOW_DIR);
+//        if(folder.exists() && folder.isDirectory())
+//            for (final File file : folder.listFiles()) {
+//                if(file.isFile())
+//                    detectBox(file, folder);
+//            }
 //
-//        Tetragram originTetra = detectBox(frame, null);
-//        System.out.println("Bound:");
-//        System.out.println(originTetra);
-//
-//        Tetragram destTetra = findDestinationRectangle(originTetra);
-//        System.out.println("destimation rect:");
-//        System.out.println(destTetra);
-//
-//        int newWidth = (int) destTetra.getBottomRight().getX() + 1;
-//        int newHeight = (int) destTetra.getBottomRight().getY() + 1;
-//        System.out.println("New size" + newWidth+"x"+newHeight);
-//
-//        Matrix transformMatrix = getTransformMatrix(originTetra, destTetra);
-//
-//        System.out.println(transformMatrix.getArray());
-//
-//        MBFImage dstImg = transformImage(frame, transformMatrix, newWidth, newHeight);
+
+        testIntersect();
     }
 
     private static MBFImage transformImage(MBFImage frame, Matrix transformMatrix, int newWidth, int newHeight) {
@@ -170,12 +161,16 @@ public class App {
         drawBounds(frame, bounding);
 
 
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/removed_similar/"+fin.getName()));
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
         return bounding;
     }
 
     private static void drawBounds(MBFImage frame, Tetragram bounding) {
-
+        frame.drawLine(bounding.getTopLeft(), bounding.getTopRight(), 3, RGBColour.BLUE);
+        frame.drawLine(bounding.getTopLeft(), bounding.getBottomLeft(), 3, RGBColour.BLUE);
+        frame.drawLine(bounding.getTopRight(), bounding.getBottomRight(), 3, RGBColour.BLUE);
+        frame.drawLine(bounding.getBottomLeft(), bounding.getBottomRight(), 3, RGBColour.BLUE);
+        frame.drawPoints(bounding.toList(), RGBColour.RED, 8);
     }
 
     private static final int LINE_GAP_REMOVAL = 100;
@@ -234,17 +229,17 @@ public class App {
 //
 //        return line2ds;
 
-        Point2d topLeft = findIntersection(top, left, width, height);
-        Point2d topRight = findIntersection(top, left, width, height);
-        Point2d bottomRight = findIntersection(top, left, width, height);
-        Point2d bottomLeft = findIntersection(top, left, width, height);
+        Point2d topLeft = findLinesIntersection(top, left, width, height);
+        Point2d topRight = findLinesIntersection(top, left, width, height);
+        Point2d bottomRight = findLinesIntersection(top, left, width, height);
+        Point2d bottomLeft = findLinesIntersection(top, left, width, height);
 
         return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
     }
 
-    private static Point2d findIntersection(Line2d line1, Line2d line2, int maxWidth, int maxHeight) {
-        Point2d p = new Point2dImpl(0,0);
-        Line2d.IntersectionResult result = line1.getIntersection(line2);
+    private static Point2d findLinesIntersection(Line2d line1, Line2d line2, int maxWidth, int maxHeight) {
+        Point2d p = new Point2dImpl(50,50);
+        Line2d.IntersectionResult result = MyHelper.findIntersection(line1, line2);
         if(result.type == Line2d.IntersectionType.INTERSECTING){
             p = result.intersectionPoint;
         }else{

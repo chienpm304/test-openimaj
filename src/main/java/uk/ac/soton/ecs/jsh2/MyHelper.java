@@ -4,6 +4,7 @@ import org.openimaj.image.FImage;
 import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.ColourSpace;
 import org.openimaj.image.colour.RGBColour;
+import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 
@@ -115,6 +116,33 @@ public class MyHelper {
         float x1 = p1.getX(), x2 = p2.getX(), y1 = p1.getY(), y2 = p2.getY();
 
         return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
+    }
+
+    public static Line2d.IntersectionResult findIntersection(Line2d l1, Line2d l2) {
+        float dx1 = l1.begin.getX() - l1.end.getX();
+        float dy1 = l1.begin.getY() - l1.end.getY();
+        float ma = l1.begin.getX() * l1.end.getY();
+        float mb = l1.end.getX() * l1.begin.getY();
+
+        float dx2 = l2.begin.getX() - l2.end.getX();
+        float dy2 = l2.begin.getY() - l2.end.getY();
+        float mc = l2.begin.getX() * l2.end.getY();
+        float md = l2.end.getX() * l2.begin.getY();
+
+        float du = dx2*dy1 - dx1*dy2;
+        if(du == 0.0f || (dx1 == 0.0f && dx2 ==0.0f) ){
+            return new Line2d.IntersectionResult(Line2d.IntersectionType.NOT_INTERESECTING);
+        }else{
+            float x = (dx1*(mc-md) - dx2*(ma-mb))/du;
+            float y;
+            if(dx1 != 0.0f){
+                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((ma-mb + x*dy1)/dx1)));
+            }else if(dx2 != 0){
+                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((mc-md + x*dy2)/dx2)));
+            }else {
+                return new Line2d.IntersectionResult(Line2d.IntersectionType.NOT_INTERESECTING);
+            }
+        }
     }
 
 
