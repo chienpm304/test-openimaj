@@ -46,15 +46,17 @@ public class App {
     }
 
     public static void main( String[] args ) throws IOException {
-//        File folder = new File(WINDOW_DIR);
-//        if(folder.exists() && folder.isDirectory())
-//            for (final File file : folder.listFiles()) {
-//                if(file.isFile())
-//                    detectBox(file, folder);
-//            }
-//
+        testDetectBox();
+//        testIntersect();
+    }
 
-        testIntersect();
+    private static void testDetectBox() throws IOException {
+        File folder = new File(WINDOW_DIR);
+        if(folder.exists() && folder.isDirectory())
+            for (final File file : folder.listFiles()) {
+                if(file.isFile())
+                    detectBox(file, folder);
+            }
     }
 
     private static MBFImage transformImage(MBFImage frame, Matrix transformMatrix, int newWidth, int newHeight) {
@@ -230,18 +232,22 @@ public class App {
 //        return line2ds;
 
         Point2d topLeft = findLinesIntersection(top, left, width, height);
-        Point2d topRight = findLinesIntersection(top, left, width, height);
-        Point2d bottomRight = findLinesIntersection(top, left, width, height);
-        Point2d bottomLeft = findLinesIntersection(top, left, width, height);
+        Point2d topRight = findLinesIntersection(top, right, width, height);
+        Point2d bottomRight = findLinesIntersection(bottom, right, width, height);
+        Point2d bottomLeft = findLinesIntersection(bottom, left, width, height);
 
         return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
     }
 
     private static Point2d findLinesIntersection(Line2d line1, Line2d line2, int maxWidth, int maxHeight) {
-        Point2d p = new Point2dImpl(50,50);
+        Point2d p = new Point2dImpl(0,0);
         Line2d.IntersectionResult result = MyHelper.findIntersection(line1, line2);
         if(result.type == Line2d.IntersectionType.INTERSECTING){
             p = result.intersectionPoint;
+            if(p.getX() < 0) p.setX(0);
+            else if(p.getX() >= maxWidth) p.setX(maxWidth-1);
+            if(p.getY() < 0) p.setY(0);
+            else if(p.getY() >= maxHeight) p.setY(maxHeight-1);
         }else{
             System.out.println("Not intersecting: "+line1+" with "+line2);
         }
