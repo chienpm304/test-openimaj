@@ -28,13 +28,16 @@ import java.util.List;
  */
 public class App {
     public static final float THRESHOLD_BIN_INV = 0.07133f;
-    public static final float STANDARD_WIDTH = 600;
+    public static final float STANDARD_WIDTH = 1080;
     public static final int S_CHANNEL_ID = 1;
-    public static final String WINDOW_DIR = "D:/detect/input/all";
+    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
+    public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java";
     private static final String LINUX_DIR = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/all";
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
     private static float scaleFactor = 1.0f;
+    private static int height;
+    private static int width;
 
     public static void testIntersect(){
         Line2d.IntersectionResult res =
@@ -52,94 +55,70 @@ public class App {
 
     private static void testDetectBox() throws IOException {
         File folder = new File(WINDOW_DIR);
+        File out = new File(WINDOW_OUT_DIR);
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
-                    detectBox(file, folder);
+                    detectWithCanny(file, out);
             }
     }
 
-    private static MBFImage transformImage(MBFImage frame, Matrix transformMatrix, int newWidth, int newHeight) {
-        MBFImage img = new MBFImage(newWidth, newHeight);
-//        img.processInplace(new ;
+    private static Tetragram detectWithCanny(File fin, File folder) throws IOException{
+        MBFImage frame = ImageUtilities.readMBF(fin);
+        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+
+        frame = frame.process(new ResizeProcessor(scaleFactor));
+        width = frame.getWidth();
+        height = frame.getHeight();
+
+        System.out.println("processing: " + fin.getName() +"...");
+
+        FImage edges = applyCannyDetector(frame);
+        ImageUtilities.write(edges, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
+
+        List<Line2d> lines = getLinesUsingHoughTransformP(edges);
+
+//        lines = removeSimilarAndNoiseLines(lines);
+
+        drawLines(frame, new Point2dImpl(width/2, height/2), lines);
+
+
+//        Tetragram bounding = getBounding(center, lines);//.scale(1.0f/scaleFactor);
+//        System.out.println("bounding scaled: "+bounding.toString());
+//        drawBounds(frame, bounding);
+
+//        bounding = bounding.scale(1.0f/scaleFactor);
+//        System.out.println("bounding: "+bounding.toString());
+//        drawBounds(frame, bounding);
+
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
         return null;
     }
 
-    private static Matrix getTransformMatrix(Tetragram originTetra, Tetragram destTetra) {
-        float[][] src = originTetra.toArray();
-        float[][] dst = destTetra.toArray();
-
-        double A[][] = new double[8][8];
-        // A x h = b -> find h = (A)^-1 x b
-        for(int i =0; i < 4; i++){
-            A[2*i][0] = src[i][0];
-            A[2*i][1] = src[i][1];
-            A[2*i][2] = 1;
-            A[2*i][3] = 0;
-            A[2*i][4] = 0;
-            A[2*i][5] = 0;
-            A[2*i][6] = -src[i][0]*dst[i][0];
-            A[2*i][7] = -dst[i][0]*src[i][1];
-
-            A[2*i + 1][0] = 0;
-            A[2*i + 1][1] = 0;
-            A[2*i + 1][2] = 0;
-            A[2*i + 1][3] = src[i][0];
-            A[2*i + 1][4] = src[i][1];
-            A[2*i + 1][5] = 1;
-            A[2*i + 1][6] = -src[i][0]*dst[i][1];
-            A[2*i + 1][7] = -src[i][1]*dst[i][1];
-        }
-
-        // build A (8x8)
-        Matrix matrixA = new Matrix(A);
-
-        // build b (8x1)
-        double []b = new double[8];
-        for(int i = 0; i<4; i++){
-            b[2*i] = dst[i][0];
-            b[2*i+1] = dst[i][1];
-        }
-
-        Matrix matrixB = new Matrix(b, 8);
-
-        Matrix trsf = matrixA.inverse().times(matrixB);
-
-        // reshape to 3x3
-        double[] flat = trsf.getColumnPackedCopy();
-        Matrix trf3x3 = new Matrix(3,3);
-        for(int i = 0; i<8; i++)
-            trf3x3.set(i/3, i%3, flat[i]);
-        trf3x3.set(2,2, 1);
-
-        return trf3x3;
-    }
-
-    private static Tetragram findDestinationRectangle(Tetragram bound) {
-        Point2d tl = bound.getTopLeft();
-        Point2d tr = bound.getTopRight();
-        Point2d br = bound.getBottomRight();
-        Point2d bl = bound.getBottomLeft();
-
-        int newWidth = (int) Math.max(distance(br, bl), distance(tr, tl));
-        int newHeight = (int) Math.max(distance(tr, br), distance(tl, bl));
-
-        float[][] rect = new float[][]{
-                {0, 0},
-                {newWidth-1, 0},
-                {newWidth-1, newHeight-1},
-                {0, newHeight-1}
-        };
-
-        return new Tetragram(rect);
+    private static List<Line2d> getLinesUsingHoughTransformP(FImage image) {
+        List<Point2d> points = new ArrayList<>();
+        for(int i = 0; i < image.width; i++)
+            for(int j = 0; j < image.height; j++){
+                if(image.getPixel(i, j) > 0.5f)
+                    points.add(new Point2dImpl(i, j));
+            }
+        return getLinesUsingHoughTransformP(points);
     }
 
     private static Tetragram detectBox(File fin, File folder) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
+        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+
+        frame = frame.process(new ResizeProcessor(scaleFactor));
+        width = frame.getWidth();
+        height = frame.getHeight();
+
         System.out.println("processing: " + fin.getName() +"...");
 
-        FImage grey = applyCustomPreproccessing(frame);
+        FImage grey = applyCannyDetector(frame);
         ImageUtilities.write(grey, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Point2d> contour = getContour(grey);
@@ -150,18 +129,21 @@ public class App {
         Point2d center = new Polygon(contour).calculateCentroid();
 
         frame.drawPoint(center, RGBColour.RED, 20);
-        List<Line2d> lines = getLinesUsingHoughTransformP(grey, contour);
+        List<Line2d> lines = getLinesUsingHoughTransformP(contour);
 
 
-        lines = removeSimilarLines(lines);
-//        drawLines(frame, center, lines);
+        lines = removeSimilarAndNoiseLines(lines);
+
+        drawLines(frame, center, lines);
 
 
-        Tetragram bounding = getBounding(grey.width, grey.height, center, lines);
+        Tetragram bounding = getBounding(center, lines);//.scale(1.0f/scaleFactor);
+//        System.out.println("bounding scaled: "+bounding.toString());
+//        drawBounds(frame, bounding);
+
+//        bounding = bounding.scale(1.0f/scaleFactor);
         System.out.println("bounding: "+bounding.toString());
-//        drawLines(frame, center, getBounding(grey.width, grey.height, center, lines));
-        drawBounds(frame, bounding);
-
+//        drawBounds(frame, bounding);
 
         ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
         return bounding;
@@ -176,7 +158,24 @@ public class App {
     }
 
     private static final int LINE_GAP_REMOVAL = 100;
-    private static List<Line2d> removeSimilarLines(List<Line2d> lines) {
+    private static final int BOUNDING_GAP_REMOVAL = 20;
+    private static List<Line2d> removeSimilarAndNoiseLines(List<Line2d> lines) {
+        for(int i = 0; i < lines.size(); i++){
+            Line2d l = lines.get(i);
+
+            if(l.begin.getX() < BOUNDING_GAP_REMOVAL && l.end.getX() < BOUNDING_GAP_REMOVAL //LEFT
+
+                || l.begin.getY() < BOUNDING_GAP_REMOVAL && l.end.getY() < BOUNDING_GAP_REMOVAL //TOP
+
+                || l.begin.getX() > width - BOUNDING_GAP_REMOVAL && l.end.getX() > width - BOUNDING_GAP_REMOVAL // RIGHT
+
+                || l.begin.getY() > height - BOUNDING_GAP_REMOVAL && l.end.getY() > height - BOUNDING_GAP_REMOVAL) {
+
+                   lines.remove(i);
+                   i--;
+            }
+        }
+
         Line2d l1, l2;
         for(int i = 0; i < lines.size()-1; i++){
             l1 = lines.get(i);
@@ -203,7 +202,7 @@ public class App {
         return lines;
     }
 
-    private static Tetragram getBounding(int width, int height, Point2d center, List<Line2d> lines) {
+    private static Tetragram getBounding(Point2d center, List<Line2d> lines) {
 
         Line2d top = null, right = null, bottom = null, left = null;
         top = findTop(width, height, center, lines);
@@ -223,31 +222,24 @@ public class App {
         System.out.println("Right: "+right);
         System.out.println("Left: "+left);
 
-//        List<Line2d> line2ds = new ArrayList<>();
-//        line2ds.add(top);
-//        line2ds.add(right);
-//        line2ds.add(bottom);
-//        line2ds.add(left);
-//
-//        return line2ds;
 
-        Point2d topLeft = findLinesIntersection(top, left, width, height);
-        Point2d topRight = findLinesIntersection(top, right, width, height);
-        Point2d bottomRight = findLinesIntersection(bottom, right, width, height);
-        Point2d bottomLeft = findLinesIntersection(bottom, left, width, height);
+        Point2d topLeft = findLinesIntersection(top, left);
+        Point2d topRight = findLinesIntersection(top, right);
+        Point2d bottomRight = findLinesIntersection(bottom, right);
+        Point2d bottomLeft = findLinesIntersection(bottom, left);
 
         return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
     }
 
-    private static Point2d findLinesIntersection(Line2d line1, Line2d line2, int maxWidth, int maxHeight) {
+    private static Point2d findLinesIntersection(Line2d line1, Line2d line2) {
         Point2d p = new Point2dImpl(0,0);
         Line2d.IntersectionResult result = MyHelper.findIntersection(line1, line2);
         if(result.type == Line2d.IntersectionType.INTERSECTING){
             p = result.intersectionPoint;
             if(p.getX() < 0) p.setX(0);
-            else if(p.getX() >= maxWidth) p.setX(maxWidth-1);
+            else if(p.getX() >= width) p.setX(width-1);
             if(p.getY() < 0) p.setY(0);
-            else if(p.getY() >= maxHeight) p.setY(maxHeight-1);
+            else if(p.getY() >= height) p.setY(height-1);
         }else{
             System.out.println("Not intersecting: "+line1+" with "+line2);
         }
@@ -360,8 +352,9 @@ public class App {
                 RGBColour.RED);
 
         for(Line2d line: lines){
-            System.out.println(line.toString());
-            frame.drawLine(line, 3, RGBColour.BLUE);
+//            line.scale(1.0f/scaleFactor);
+//            System.out.println(line.toString());
+            frame.drawLine(line, 5, RGBColour.BLUE);
             frame.drawPoint(line.begin, RGBColour.RED, 5);
             frame.drawPoint(line.end, RGBColour.YELLOW, 5);
             frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
@@ -372,8 +365,8 @@ public class App {
         }
     }
 
-    private static List<Line2d> getLinesUsingHoughTransformP(FImage grey, List<Point2d> contour) {
-        HoughLinesP ht = new HoughLinesP(contour, grey.width, grey.height,  65, 150, 20);
+    private static List<Line2d> getLinesUsingHoughTransformP(List<Point2d> contour) {
+        HoughLinesP ht = new HoughLinesP(contour, width, height,  65, 150, 20);
         return ht.getLines();
     }
 
@@ -449,7 +442,7 @@ public class App {
     }
 
     private static FImage applyCannyDetector(MBFImage frame) {
-        CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.15f, 3.0f);
+        CannyEdgeDetector canny = new CannyEdgeDetector(0.05f, 0.3f, 3.0f);
         FImage grey = frame.flatten();
 
 //        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
@@ -573,7 +566,6 @@ public class App {
     private static Float[] getRandomColor() {
         return RGBColour.RGB(rnd.nextInt(256), rnd.nextInt(256), rnd.nextInt(256));
     }
-
 
     static double distance(Point2d p1, Point2d p2){
 

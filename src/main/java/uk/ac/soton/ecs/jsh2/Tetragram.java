@@ -98,4 +98,14 @@ public class Tetragram {
     public Point2d getBottomLeft() {
         return bl;
     }
+
+    public Tetragram scale(float scaleFactor) {
+        float[][] tmp = toArray();
+        for(int i =0; i < 4; i++){
+            for(int j = 0; j < 2; j++)
+                tmp[i][j] *= scaleFactor;
+        }
+        return new Tetragram(tmp);
+    }
+
 }
