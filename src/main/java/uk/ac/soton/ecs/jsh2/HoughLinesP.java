@@ -67,7 +67,7 @@ public class HoughLinesP {
         }
 
         // Shuffle the array randomly
-        Collections.shuffle(nonZeroPoints);
+//        Collections.shuffle(nonZeroPoints);
 
 
     }

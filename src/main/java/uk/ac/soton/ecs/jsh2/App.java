@@ -3,10 +3,12 @@ package uk.ac.soton.ecs.jsh2;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
+import org.openimaj.image.analysis.algorithm.histogram.HistogramAnalyser;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.contour.Contour;
 import org.openimaj.image.contour.SuzukiContourProcessor;
+import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
@@ -37,23 +39,27 @@ public class App {
     private static final String LINUX_DIR_out = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
-    ;
+
 
 
     private static float scaleFactor = 1.0f;
     private static int height;
     private static int width;
 
+    public static final float GAUSSIAN_BLUR_SIGMA = 5f;
 
-    public static final float CANNY_LOW_THRESH = 0.05f;
-    public static final float CANNY_HIGH_THRESH = 0.3f;
-    public static final float CANNY_SIGMA = 3f;
+    public static final float CANNY_LOW_THRESH = 0.02f;
+    public static final float CANNY_HIGH_THRESH = 0.03f;
+    public static final float CANNY_SIGMA = 5f;
 
-    public static final int HOUGHLINE_THRESHOLD = 65;
+    public static final int HOUGHLINE_THRESHOLD = 80;
     public static final int HOUGH_LINE_LENGTH = 200;
 
     private static final int LINE_GAP_REMOVAL = 25;
     private static final int BOUNDING_GAP_REMOVAL = 0;
+
+    public static final int HISTOGRAM_NBINS = 64;
+
 
     public static void testIntersect(){
         Line2d.IntersectionResult res =
@@ -94,13 +100,13 @@ public class App {
         ImageUtilities.write(edges, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
-        drawLines(frame, new Point2dImpl(width/2, height/2), lines, RGBColour.DARK_GRAY);
+        drawLines(frame, new Point2dImpl(width/2, height/2), lines, RGBColour.BLUE);
 
         lines = removeSimilarAndNoiseLines(lines);
 
         Point2dImpl center =  new Point2dImpl(width/2, height/2);
 
-        drawLines(frame,center, lines, RGBColour.BLUE);
+//        drawLines(frame,center, lines, RGBColour.BLUE);
 
         drawLines(frame, center, selectRawLines(center, lines), RGBColour.GREEN);
 
@@ -398,7 +404,7 @@ public class App {
         for(Line2d line: lines){
 //            line.scale(1.0f/scaleFactor);
 //            System.out.println(line.toString());
-            frame.drawLine(line, 5, lineColor);
+            frame.drawLine(line, 2, lineColor);
             frame.drawPoint(line.begin, RGBColour.RED, 5);
             frame.drawPoint(line.end, RGBColour.YELLOW, 5);
             frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
@@ -488,6 +494,12 @@ public class App {
     private static FImage applyCannyDetector(MBFImage frame) {
         CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
         FImage grey = frame.flatten();
+
+
+        grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
+
+//        HistogramAnalyser analyser = new HistogramAnalyser(HISTOGRAM_NBINS);
+//        analyser.analyseImage(grey);
 
 //        scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
 //        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
