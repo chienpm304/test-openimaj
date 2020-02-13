@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
+import static java.lang.Math.PI;
+
 /**
  * OpenIMAJ Hello world!
  *
@@ -73,11 +75,22 @@ public class App {
     public static void main( String[] args ) throws IOException {
         testDetectBox();
 //        testIntersect();
+        testMergeLines();
+    }
+
+    private static void testMergeLines() {
+        Line2d line1 = new Line2d(2,2, 5,3);
+        Line2d line2 = new Line2d(4,3,6,5);
+        System.out.println("before merge: ");
+        System.out.println("keep: "+line1.toString());
+
+        mergeLine(line1, line2);
+        System.out.println("after merge: "+line1.toString());
     }
 
     private static void testDetectBox() throws IOException {
-        File folder = new File(LINUX_DIR);
-        File out = new File(LINUX_DIR_out);
+        File folder = new File(WINDOW_DIR);
+        File out = new File(WINDOW_OUT_DIR);
         if(folder.exists() && folder.isDirectory())
             for (final File file : folder.listFiles()) {
                 if(file.isFile())
@@ -203,6 +216,7 @@ public class App {
         }
 
         Line2d l1, l2;
+        Line2d kpLine, rmLine;
         for(int i = 0; i < lines.size()-1; i++){
             l1 = lines.get(i);
             for(int j = i+1; j < lines.size(); j++){
@@ -213,19 +227,102 @@ public class App {
                         && l1.distanceToLine(l2.begin) < LINE_GAP_REMOVAL
                         && l1.distanceToLine(l2.end) < LINE_GAP_REMOVAL
                 ){
-                    if(l1.calculateLength() < l2.calculateLength()) {
+                    if(l1.calculateLength() < l2.calculateLength()) { // keep line i
                         Collections.swap(lines, i, j);
-                        lines.remove(j);
+                        rmLine = lines.remove(j);
+                        kpLine = lines.get(i);
                         j = i;
                         l1 = lines.get(i);
                     }else{
-                        lines.remove(j);
+                        rmLine = lines.remove(j);
+                        kpLine = lines.get(i);
                         j--;
                     }
+
+                    //merge rmLine to kpLine
+                    mergeLine(kpLine, rmLine);
+                    lines.set(i, kpLine);
                 }
             }
         }
         return lines;
+    }
+
+    private static void mergeLine(Line2d keep, Line2d remove) {
+
+        //determinate the merge axis
+        double hAngle = keep.calculateHorizontalAngle();
+        System.out.println("hAngle = "+hAngle);
+
+        // Given the equation for a line as ax - by + c = 0
+        float a = keep.end.getY() - keep.begin.getY();
+        float b = keep.end.getX() - keep.begin.getX();
+        float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
+
+        float newX, newY;
+
+        Point2d expandedPoint;
+        if(hAngle < PI/4){//x-axis
+
+            // begin.x < end.x
+            if(keep.begin.getX() > keep.end.getX()){
+                Point2d tmp = keep.begin;
+                keep.setBeginPoint(keep.end);
+                keep.setEndPoint(tmp);
+            }
+            if(remove.begin.getX() > remove.end.getX()){
+                Point2d tmp = remove.begin;
+                remove.setBeginPoint(remove.end);
+                remove.setEndPoint(tmp);
+            }
+
+            if(remove.begin.getX() < keep.begin.getX()){
+                // expand left
+                newX = remove.begin.getX();
+                newY = (a*newX +c)/(b);
+
+                keep.begin.setX(newX);
+                keep.begin.setY(newY);
+            }
+            else if(remove.end.getX() > keep.end.getX()){
+                // expand right
+                newX = remove.end.getX();
+                newY = (a*newX +c)/(b);
+
+                keep.end.setX(newX);
+                keep.end.setY(newY);
+            }
+        }else{ // y-axis
+            // begin.x < end.x
+            if(keep.begin.getY() > keep.end.getY()){
+                Point2d tmp = keep.begin;
+                keep.setBeginPoint(keep.end);
+                keep.setEndPoint(tmp);
+            }
+            if(remove.begin.getY() > remove.end.getY()){
+                Point2d tmp = remove.begin;
+                remove.setBeginPoint(remove.end);
+                remove.setEndPoint(tmp);
+            }
+
+            if(remove.begin.getY() < keep.begin.getY()){
+                // expand top
+                newY = remove.begin.getY();
+                newX = -(b*newY + c)/(a);
+
+                keep.begin.setX(newX);
+                keep.begin.setY(newY);
+            }
+            else if(remove.end.getY() > keep.end.getY()){
+                // expand bottom
+                newY = remove.end.getY();
+                newX = -(b*newY + c)/(a);
+
+                keep.end.setX(newX);
+                keep.end.setY(newY);
+            }
+        }
+//        return keep;
     }
 
     private static List<Line2d> selectRawLines(Point2d center, List<Line2d> lines){
