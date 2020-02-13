@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.function.DoubleToIntFunction;
 
 import static java.lang.Math.PI;
 
@@ -51,13 +52,13 @@ public class App {
     public static final float GAUSSIAN_BLUR_SIGMA = 5f;
 
     public static final float CANNY_LOW_THRESH = 0.02f;
-    public static final float CANNY_HIGH_THRESH = 0.03f;
+    public static final float CANNY_HIGH_THRESH = 0.1f;
     public static final float CANNY_SIGMA = 5f;
 
     public static final int HOUGHLINE_THRESHOLD = 80;
-    public static final int HOUGH_LINE_LENGTH = 200;
+    public static final int HOUGH_LINE_LENGTH = 150;
 
-    private static final int LINE_GAP_REMOVAL = 25;
+    private static final int LINE_GAP_REMOVAL = 10;
     private static final int BOUNDING_GAP_REMOVAL = 0;
 
     public static final int HISTOGRAM_NBINS = 64;
@@ -75,12 +76,12 @@ public class App {
     public static void main( String[] args ) throws IOException {
         testDetectBox();
 //        testIntersect();
-        testMergeLines();
+//        testMergeLines();
     }
 
     private static void testMergeLines() {
-        Line2d line1 = new Line2d(2,2, 5,3);
-        Line2d line2 = new Line2d(4,3,6,5);
+        Line2d line1 = new Line2d(1,1, 1, 6);
+        Line2d line2 = new Line2d(1.2f, 4.8f, 1.2f, 6.5f);
         System.out.println("before merge: ");
         System.out.println("keep: "+line1.toString());
 
@@ -113,15 +114,18 @@ public class App {
         ImageUtilities.write(edges, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
-        drawLines(frame, new Point2dImpl(width/2, height/2), lines, RGBColour.BLUE);
+//        drawLines(frame, new Point2dImpl(width/2, height/2), lines, RGBColour.DARK_GRAY);
 
-        lines = removeSimilarAndNoiseLines(lines);
+        System.out.println("Before merge: "+lines.size());
+        removeSimilarAndNoiseLines(lines);
+
+        System.out.println("After merge: "+lines.size());
 
         Point2dImpl center =  new Point2dImpl(width/2, height/2);
 
 //        drawLines(frame,center, lines, RGBColour.BLUE);
 
-        drawLines(frame, center, selectRawLines(center, lines), RGBColour.GREEN);
+        drawLines(frame, center, lines, RGBColour.GREEN);
 
 //        Tetragram bounding = getBounding(new Point2dImpl(width/2, height/2), lines);
 //        System.out.println("bounding scaled: "+bounding.toString());
@@ -232,7 +236,7 @@ public class App {
                         rmLine = lines.remove(j);
                         kpLine = lines.get(i);
                         j = i;
-                        l1 = lines.get(i);
+
                     }else{
                         rmLine = lines.remove(j);
                         kpLine = lines.get(i);
@@ -242,6 +246,7 @@ public class App {
                     //merge rmLine to kpLine
                     mergeLine(kpLine, rmLine);
                     lines.set(i, kpLine);
+                    l1 = lines.get(i);
                 }
             }
         }
@@ -252,7 +257,7 @@ public class App {
 
         //determinate the merge axis
         double hAngle = keep.calculateHorizontalAngle();
-        System.out.println("hAngle = "+hAngle);
+//        System.out.println("hAngle = "+hAngle);
 
         // Given the equation for a line as ax - by + c = 0
         float a = keep.end.getY() - keep.begin.getY();
@@ -289,8 +294,12 @@ public class App {
                 newX = remove.end.getX();
                 newY = (a*newX +c)/(b);
 
+                //todo: constraint in max width, max height
+
                 keep.end.setX(newX);
                 keep.end.setY(newY);
+
+
             }
         }else{ // y-axis
             // begin.x < end.x
@@ -317,6 +326,8 @@ public class App {
                 // expand bottom
                 newY = remove.end.getY();
                 newX = -(b*newY + c)/(a);
+
+                //todo: constraint in max width, max height
 
                 keep.end.setX(newX);
                 keep.end.setY(newY);
@@ -504,11 +515,10 @@ public class App {
             frame.drawLine(line, 2, lineColor);
             frame.drawPoint(line.begin, RGBColour.RED, 5);
             frame.drawPoint(line.end, RGBColour.YELLOW, 5);
-            frame.drawText(lines.indexOf(line)+1+"", (int)line.calculateCentroid().getX(),
-                    (int)line.calculateCentroid().getY()+80,
+            frame.drawText(Math.round(line.calculateHorizontalAngle()*180/PI)+"*", (int)line.calculateCentroid().getX(),
+                    (int)line.calculateCentroid().getY(),
                     HersheyFont.ROMAN_DUPLEX,
-                    20,
-                    lineColor);
+                    20,RGBColour.BLUE);
         }
     }
 
