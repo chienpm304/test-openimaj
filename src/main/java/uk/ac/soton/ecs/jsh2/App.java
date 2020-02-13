@@ -58,7 +58,7 @@ public class App {
     public static final int HOUGHLINE_THRESHOLD = 80;
     public static final int HOUGH_LINE_LENGTH = 150;
 
-    private static final int LINE_GAP_REMOVAL = 10;
+    private static final int LINE_GAP_REMOVAL = 20;
     private static final int BOUNDING_GAP_REMOVAL = 0;
 
     public static final int HISTOGRAM_NBINS = 64;
@@ -285,7 +285,13 @@ public class App {
                 // expand left
                 newX = remove.begin.getX();
                 newY = (a*newX +c)/(b);
-
+                if(newY < 0){
+                    newY = 0;
+                    newX = (b*newY - c)/(a);
+                }else if(newY > height){
+                    newY = height - 1;
+                    newX = (b*newY - c)/(a);
+                }
                 keep.begin.setX(newX);
                 keep.begin.setY(newY);
             }
@@ -294,7 +300,13 @@ public class App {
                 newX = remove.end.getX();
                 newY = (a*newX +c)/(b);
 
-                //todo: constraint in max width, max height
+                if(newY < 0){
+                    newY = 0;
+                    newX = (b*newY - c)/(a);
+                }else if(newY > height){
+                    newY = height - 1;
+                    newX = (b*newY - c)/(a);
+                }
 
                 keep.end.setX(newX);
                 keep.end.setY(newY);
@@ -317,7 +329,15 @@ public class App {
             if(remove.begin.getY() < keep.begin.getY()){
                 // expand top
                 newY = remove.begin.getY();
-                newX = -(b*newY + c)/(a);
+                newX = (b*newY - c)/(a);
+
+                if(newX < 0){
+                    newX = 0;
+                    newY = (a*newX +c)/(b);
+                }else if(newX > width){
+                    newX = width - 1;
+                    newY = (b*newY - c)/(a);
+                }
 
                 keep.begin.setX(newX);
                 keep.begin.setY(newY);
@@ -325,9 +345,15 @@ public class App {
             else if(remove.end.getY() > keep.end.getY()){
                 // expand bottom
                 newY = remove.end.getY();
-                newX = -(b*newY + c)/(a);
+                newX = (b*newY - c)/(a);
 
-                //todo: constraint in max width, max height
+                if(newX < 0){
+                    newX = 0;
+                    newY = (a*newX +c)/(b);
+                }else if(newX > width){
+                    newX = width - 1;
+                    newY = (b*newY - c)/(a);
+                }
 
                 keep.end.setX(newX);
                 keep.end.setY(newY);
