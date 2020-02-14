@@ -73,11 +73,11 @@ public class App {
     }
 
     public static void main( String[] args ) throws IOException {
-//        testDetectBox();
+        testDetectBox();
 //        testIntersect();
 //        testMergeLines();
 //        testAngleGap();
-        detectWithCanny(new File(LINUX_DIR_IN+"/5.jpg"), new File(LINUX_DIR_OUT));
+//        detectWithCanny(new File(LINUX_DIR_IN+"/8.jpg"), new File(LINUX_DIR_OUT));
     }
 
     private static void testAngleGap() {
@@ -151,6 +151,7 @@ public class App {
         return null;
     }
 
+
     private static List<LineHolder> findBounds(List<Line2d> lines) {
 
         ArrayList<LineHolder> res = new ArrayList<>();
@@ -158,56 +159,59 @@ public class App {
         Line2d base1, base2, fit1, fit2;
         double b1, b2, f1, f2;
         int n = lines.size();
-        for(int i = 0; i < n-1; i++){
-            base1 = lines.get(i);
-            b1 = getAngleInDegree(base1);
-            for(int j = i+1; j < n; j++){
-                base2 = lines.get(j);
-                b2 = getAngleInDegree(base2);
-                if(calcAngleDiffInDegree(b1, b2) <= 5){
 
-                    for(int k = 0; k < n - 1; k++){
-                        if(k == i || k == j) continue;
-                        fit1 = lines.get(k);
-                        f1 = getAngleInDegree(fit1);
+        int angle_step = 5;
+        while(res.isEmpty() && angle_step < 15) {
+            for (int i = 0; i < n - 1; i++) {
+                base1 = lines.get(i);
+                b1 = getAngleInDegree(base1);
+                for (int j = i + 1; j < n; j++) {
+                    base2 = lines.get(j);
+                    b2 = getAngleInDegree(base2);
+                    if (calcAngleDiffInDegree(b1, b2) <= angle_step) {
 
-                        if(calcAngleDiffInDegree(b1, f1) >= 90 - 10 || calcAngleDiffInDegree(b2, f1) >= 90 - 10){
-                            for(int l = k + 1; l < n; l++){
-                                if(l == i || l == j) continue;
-                                fit2 = lines.get(l);
-                                f2 = getAngleInDegree(fit2);
+                        for (int k = 0; k < n - 1; k++) {
+                            if (k == i || k == j) continue;
+                            fit1 = lines.get(k);
+                            f1 = getAngleInDegree(fit1);
 
-                                if(calcAngleDiffInDegree(b1, f2) >= 90 - 10 || calcAngleDiffInDegree(b2, f2) >= 90 - 10) {
-                                    LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
-                                    double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
-                                    double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
-                                    double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
-                                    double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
+                            if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f1) >= 90 - angle_step*2) {
+                                for (int l = k + 1; l < n; l++) {
+                                    if (l == i || l == j) continue;
+                                    fit2 = lines.get(l);
+                                    f2 = getAngleInDegree(fit2);
 
-                                    double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
-                                    double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
-                                    double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
-                                    double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
+                                    if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step || calcAngleDiffInDegree(b2, f2) >= 90 - angle_step) {
+                                        LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
+                                        double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
+                                        double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
+                                        double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
+                                        double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
+
+                                        double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
+                                        double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
+                                        double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
+                                        double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
 
 
-
-                                    lh.rank = base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2;// + fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
+                                        lh.rank = base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2;// + fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
 //                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
 //                                            Math.min(base1_fit2, fit1_base2) +
 //                                            Math.min(base2_fit1, fit2_base1) +
 //                                            Math.min(base2_fit2, fit2_base2);
 
-                                    res.add(lh);
-                                }
+                                        res.add(lh);
+                                    }
 
+                                }
                             }
                         }
-                    }
 
+                    }
                 }
             }
+            angle_step+=5;
         }
-
         Collections.sort(res);
         System.out.println("Detected "+ res.size() +" bounds");
         for(LineHolder lh: res){
