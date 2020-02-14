@@ -36,7 +36,7 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
 
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
-    public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java";
+    public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java";
 
     private static final String LINUX_DIR = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
     private static final String LINUX_DIR_out = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
@@ -51,12 +51,12 @@ public class App {
 
     public static final float GAUSSIAN_BLUR_SIGMA = 5f;
 
-    public static final float CANNY_LOW_THRESH = 0.02f;
-    public static final float CANNY_HIGH_THRESH = 0.1f;
-    public static final float CANNY_SIGMA = 5f;
+    public static float CANNY_LOW_THRESH = 0.03f;
+    public static float CANNY_HIGH_THRESH = 0.1f;
+    public static float CANNY_SIGMA = 5f;
 
-    public static final int HOUGHLINE_THRESHOLD = 80;
-    public static final int HOUGH_LINE_LENGTH = 150;
+    public static int HOUGHLINE_THRESHOLD = 80;
+    public static int HOUGH_LINE_LENGTH = 150;
 
     private static final int LINE_GAP_REMOVAL = 20;
     private static final int BOUNDING_GAP_REMOVAL = 0;
@@ -74,7 +74,19 @@ public class App {
     }
 
     public static void main( String[] args ) throws IOException {
-        testDetectBox();
+        for(HOUGHLINE_THRESHOLD = 50; HOUGHLINE_THRESHOLD <= 100; HOUGHLINE_THRESHOLD+=5){
+            for(CANNY_LOW_THRESH = 0.01f; CANNY_LOW_THRESH < 0.1; CANNY_LOW_THRESH+=0.01f){
+                for(CANNY_HIGH_THRESH = CANNY_LOW_THRESH + 0.01f; CANNY_HIGH_THRESH <= 0.15f; CANNY_HIGH_THRESH+=0.01f){
+                    WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java/"+HOUGHLINE_THRESHOLD+"_"+CANNY_LOW_THRESH+"_"+CANNY_HIGH_THRESH;
+                    File file = new File(WINDOW_OUT_DIR);
+                    if(!file.exists()){
+                        file.mkdirs();
+                    }
+                    testDetectBox();
+                }
+            }
+        }
+//        testDetectBox();
 //        testIntersect();
 //        testMergeLines();
     }
@@ -111,7 +123,7 @@ public class App {
         System.out.println("processing: " + fin.getName() +"...");
 
         FImage edges = applyCannyDetector(frame);
-        ImageUtilities.write(edges, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
+//        ImageUtilities.write(edges, new File(folder.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 //        drawLines(frame, new Point2dImpl(width/2, height/2), lines, RGBColour.DARK_GRAY);
@@ -135,7 +147,7 @@ public class App {
 //        System.out.println("bounding: "+bounding.toString());
 //        drawBounds(frame, bounding);
 
-        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/out/"+fin.getName()));
+        ImageUtilities.write(frame, new File(folder.getAbsolutePath()+"/"+fin.getName()));
         return null;
     }
 
