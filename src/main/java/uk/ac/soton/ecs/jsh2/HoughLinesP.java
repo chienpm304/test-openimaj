@@ -67,7 +67,7 @@ public class HoughLinesP {
         }
 
         // Shuffle the array randomly
-//        Collections.shuffle(nonZeroPoints);
+        Collections.shuffle(nonZeroPoints);
 
 
     }
@@ -239,8 +239,16 @@ public class HoughLinesP {
             }
 
             if(goodLine){
-                lines.add(new Line2d(lineEnds[0][0], lineEnds[0][1],
-                        lineEnds[1][0], lineEnds[1][1]));
+                Line2d l = new Line2d(lineEnds[0][0], lineEnds[0][1],
+                        lineEnds[1][0], lineEnds[1][1]);
+                if(l.begin.getX() > l.end.getX()){
+                    Point2d tmp = l.getBeginPoint();
+                    l.setBeginPoint(l.getEndPoint());
+                    l.setEndPoint(tmp);
+                }
+
+                lines.add(l);
+
                 if(lines.size() >= linesMax) {
                     return lines;
                 }
