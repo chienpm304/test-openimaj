@@ -38,7 +38,7 @@ public class App {
     public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
-    private static final String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
+    private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
 
@@ -51,7 +51,7 @@ public class App {
     public static final float GAUSSIAN_BLUR_SIGMA = 3f;
 
     public static float CANNY_LOW_THRESH = 0.01f;
-    public static float CANNY_HIGH_THRESH = 0.06f;
+    public static float CANNY_HIGH_THRESH = 0.05f;
     public static float CANNY_SIGMA = 5f;
 
     public static int HOUGHLINE_THRESHOLD = 65;
@@ -78,6 +78,41 @@ public class App {
 //        testMergeLines();
 //        testAngleGap();
 //        detectWithCanny(new File(LINUX_DIR_IN+"/8.jpg"), new File(LINUX_DIR_OUT));
+//        bruteForceCanny();
+    }
+
+    private static void bruteForceCanny() throws IOException {
+        File fin = new File(LINUX_DIR_IN);
+        File fout = new File(LINUX_DIR_OUT);
+        if(fin.exists() && fin.isDirectory())
+            for (final File file : fin.listFiles()) {
+                if(file.isFile()){
+
+                    MBFImage frame = ImageUtilities.readMBF(file);
+                    scaleFactor = STANDARD_WIDTH /(float)frame.getWidth();
+                    scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+
+                    frame = frame.process(new ResizeProcessor(scaleFactor));
+                    width = frame.getWidth();
+                    height = frame.getHeight();
+
+                    MBFImage hsv = Transforms.RGB_TO_HSV(frame);
+
+                    for(CANNY_SIGMA = 3f; CANNY_SIGMA < 6; CANNY_SIGMA+=2f) {
+                        for (CANNY_LOW_THRESH = 0.01f; CANNY_LOW_THRESH < 0.2; CANNY_LOW_THRESH += 0.03) {
+                            for (CANNY_HIGH_THRESH = CANNY_LOW_THRESH + 0.05f; CANNY_HIGH_THRESH < 0.3; CANNY_HIGH_THRESH += 0.03) {
+                                LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA+"_"+CANNY_LOW_THRESH+"_"+CANNY_HIGH_THRESH;
+                                fout = new File(LINUX_DIR_OUT);
+                                if(!fout.exists()) fout.mkdirs();
+                                FImage edges = applyCannyDetector(hsv, file, fout);
+                                ImageUtilities.write(edges, new File(fout.getAbsolutePath()+"/"+file.getName()));
+
+                            }
+                        }
+                    }
+                }
+            }
+
     }
 
     private static void testAngleGap() {
@@ -117,10 +152,6 @@ public class App {
 
 
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
-//        ImageUtilities.write(hsv.getBand(0), new File(fout.getAbsolutePath()+"/H/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(1), new File(fout.getAbsolutePath()+"/S/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(2), new File(fout.getAbsolutePath()+"/V/"+fin.getName()));
 
         Point2dImpl center =  new Point2dImpl(width/2, height/2);
 
