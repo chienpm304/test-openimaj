@@ -12,7 +12,7 @@ public class HoughLinesP {
     private List<Point2d> nonZeroPoints;
     private int width;
     private int height;
-    private double rho = 1;
+    private double rho = 2;
     private double theta = Math.PI / 180d;
     private int threshold = 50;
     private int lineLength = 150;
@@ -28,12 +28,16 @@ public class HoughLinesP {
     public HoughLinesP(List<Point2d> points,
                        int width,
                        int height,
+                       double rho,
+                       double theta,
                        int threshold,
                        int lineLength,
                        int linesMax) {
         this.nonZeroPoints = points;
         this.width = width;
         this.height = height;
+        this.rho = rho;
+        this.theta = theta;
         this.threshold = threshold;
         this.lineLength = lineLength;
         this.linesMax = linesMax;

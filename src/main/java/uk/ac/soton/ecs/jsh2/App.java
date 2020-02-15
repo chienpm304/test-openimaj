@@ -1,22 +1,16 @@
 package uk.ac.soton.ecs.jsh2;
 
-import org.hsqldb.lib.Collection;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
-import org.openimaj.image.contour.Contour;
-import org.openimaj.image.contour.SuzukiContourProcessor;
-import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
-import org.openimaj.math.geometry.shape.Polygon;
-import org.openimaj.math.geometry.shape.Rectangle;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +29,8 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
 
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
-    public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc/java";
+
+    public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
     private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
@@ -54,7 +49,10 @@ public class App {
     public static float CANNY_HIGH_THRESH = 0.05f;
     public static float CANNY_SIGMA = 5f;
 
-    public static int HOUGHLINE_THRESHOLD = 65;
+    public static final double HOUGH_LINE_RHO = 1;
+    public static final double HOUGH_LINE_THETA = Math.PI / 180d;
+
+    public static int HOUGHLINE_THRESHOLD = 80;
     public static int HOUGH_LINE_LENGTH = 150;
 
     private static final int LINE_GAP_REMOVAL = 20;
@@ -82,7 +80,7 @@ public class App {
     }
 
     private static void bruteForceCanny() throws IOException {
-        File fin = new File(LINUX_DIR_IN);
+        File fin = new File(WINDOW_DIR);
         File fout = new File(LINUX_DIR_OUT);
         if(fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
@@ -130,8 +128,8 @@ public class App {
     }
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(LINUX_DIR_IN);
-        File fout = new File(LINUX_DIR_OUT);
+        File fin = new File(WINDOW_DIR);
+        File fout = new File(WINDOW_OUT_DIR);
         if(fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if(file.isFile())
@@ -190,54 +188,58 @@ public class App {
         Line2d base1, base2, fit1, fit2;
         double b1, b2, f1, f2;
         int n = lines.size();
-
+        boolean addDummyLine = false;
         int angle_step = 5;
-        while(res.isEmpty() && angle_step < 15) {
+        boolean detected = false;
+
+        while(res.isEmpty() && angle_step < 30) {
             for (int i = 0; i < n - 1; i++) {
                 base1 = lines.get(i);
                 b1 = getAngleInDegree(base1);
                 for (int j = i + 1; j < n; j++) {
                     base2 = lines.get(j);
                     b2 = getAngleInDegree(base2);
+                    detected = false;
                     if (calcAngleDiffInDegree(b1, b2) <= angle_step) {
 
-                        for (int k = 0; k < n - 1; k++) {
+                        for (int k = 0; k < lines.size()-1; k++) {
                             if (k == i || k == j) continue;
+
                             fit1 = lines.get(k);
-                            f1 = getAngleInDegree(fit1);
 
-                            if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f1) >= 90 - angle_step*2) {
-                                for (int l = k + 1; l < n; l++) {
-                                    if (l == i || l == j) continue;
-                                    fit2 = lines.get(l);
-                                    f2 = getAngleInDegree(fit2);
+                            for (int l = k + 1; l < lines.size(); l++) {
+                                if (l == i || l == j) continue;
+                                fit2 = lines.get(l);
 
-                                    if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step || calcAngleDiffInDegree(b2, f2) >= 90 - angle_step) {
-                                        LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
-                                        double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
-                                        double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
-                                        double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
-                                        double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
-
-                                        double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
-                                        double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
-                                        double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
-                                        double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
-
-
-                                        lh.rank = base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2;// + fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
-//                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
-//                                            Math.min(base1_fit2, fit1_base2) +
-//                                            Math.min(base2_fit1, fit2_base1) +
-//                                            Math.min(base2_fit2, fit2_base2);
-
-                                        res.add(lh);
-                                    }
-
+                                LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+                                if(lh!=null) {
+                                    res.add(lh);
+                                    detected = true;
                                 }
                             }
                         }
 
+                        if(!detected){
+                            Line2d tmp1 = base1.clone();
+                            Line2d tmp2 = base2.clone();
+                            // added 2 dummy lines
+                            if(b1 < 45){
+                                sortByXAxis(tmp1);
+                                sortByXAxis(tmp2);
+                            }else{
+                                sortByYAxis(tmp1);
+                                sortByYAxis(tmp2);
+                            }
+
+                            fit1 = new Line2d(base1.begin, base2.begin);
+                            fit2 = new Line2d(base1.end, base2.end);
+
+                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+                            if(lh!=null) {
+                                res.add(lh);
+                                detected = true;
+                            }
+                        }
                     }
                 }
             }
@@ -251,6 +253,47 @@ public class App {
 
 
         return res;
+    }
+
+    private static LineHolder considerToAddBound(Line2d base1, Line2d base2, Line2d fit1, Line2d fit2, double angle_step) {
+        double f1 = getAngleInDegree(fit1);
+        double f2 = getAngleInDegree(fit2);
+
+        double b1 = getAngleInDegree(base1);
+        double b2 = getAngleInDegree(base2);
+
+        double bases_distance = (base1.distanceToLine(base2.begin) + base1.distanceToLine(base2.end))/2d;
+
+        if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f1) >= 90 - angle_step*2) {
+            if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f2) >= 90 - angle_step*2) {
+                LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
+                double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
+                double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
+                double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
+                double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
+
+                double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
+                double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
+                double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
+                double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
+
+                double fits_distance = (fit1.distanceToLine(fit2.begin) + fit1.distanceToLine(fit2.end)) / 2d;
+
+
+                lh.rank =
+                        base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2
+                                - fits_distance - bases_distance +
+                                fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
+
+//                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
+//                                            Math.min(base1_fit2, fit1_base2) +
+//                                            Math.min(base2_fit1, fit2_base1) +
+//                                            Math.min(base2_fit2, fit2_base2);
+
+                return lh;
+            }
+        }
+        return null;
     }
 
     private static double getAngleInDegree(Line2d line) {
@@ -350,16 +393,8 @@ public class App {
         if(hAngle < PI/4){//x-axis
 
             // begin.x < end.x
-            if(keep.begin.getX() > keep.end.getX()){
-                Point2d tmp = keep.begin;
-                keep.setBeginPoint(keep.end);
-                keep.setEndPoint(tmp);
-            }
-            if(remove.begin.getX() > remove.end.getX()){
-                Point2d tmp = remove.begin;
-                remove.setBeginPoint(remove.end);
-                remove.setEndPoint(tmp);
-            }
+            sortByXAxis(keep);
+            sortByXAxis(remove);
 
             if(remove.begin.getX() < keep.begin.getX()){
                 // expand left
@@ -395,16 +430,8 @@ public class App {
             }
         }else{ // y-axis
             // begin.x < end.x
-            if(keep.begin.getY() > keep.end.getY()){
-                Point2d tmp = keep.begin;
-                keep.setBeginPoint(keep.end);
-                keep.setEndPoint(tmp);
-            }
-            if(remove.begin.getY() > remove.end.getY()){
-                Point2d tmp = remove.begin;
-                remove.setBeginPoint(remove.end);
-                remove.setEndPoint(tmp);
-            }
+            sortByYAxis(keep);
+            sortByYAxis(remove);
 
             if(remove.begin.getY() < keep.begin.getY()){
                 // expand top
@@ -442,9 +469,25 @@ public class App {
 //        return keep;
     }
 
+    private static void sortByYAxis(Line2d keep) {
+        if(keep.begin.getY() > keep.end.getY()){
+            Point2d tmp = keep.begin;
+            keep.setBeginPoint(keep.end);
+            keep.setEndPoint(tmp);
+        }
+    }
+
+    private static void sortByXAxis(Line2d keep) {
+        if(keep.begin.getX() > keep.end.getX()){
+            Point2d tmp = keep.begin;
+            keep.setBeginPoint(keep.end);
+            keep.setEndPoint(tmp);
+        }
+    }
+
 
     private static List<Line2d> getLinesUsingHoughTransformP(List<Point2d> contour) {
-        HoughLinesP ht = new HoughLinesP(contour, width, height,  HOUGHLINE_THRESHOLD, HOUGH_LINE_LENGTH, 200);
+        HoughLinesP ht = new HoughLinesP(contour, width, height, HOUGH_LINE_RHO, HOUGH_LINE_THETA, HOUGHLINE_THRESHOLD, HOUGH_LINE_LENGTH, 200);
         return ht.getLines();
     }
 
