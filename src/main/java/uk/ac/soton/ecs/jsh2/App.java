@@ -192,7 +192,7 @@ public class App {
         int angle_step = 5;
         boolean detected = false;
 
-        while(res.isEmpty() && angle_step < 30) {
+        while(res.isEmpty() && angle_step <= 45) {
             for (int i = 0; i < n - 1; i++) {
                 base1 = lines.get(i);
                 b1 = getAngleInDegree(base1);
@@ -219,27 +219,27 @@ public class App {
                             }
                         }
 
-                        if(!detected){
-                            Line2d tmp1 = base1.clone();
-                            Line2d tmp2 = base2.clone();
-                            // added 2 dummy lines
-                            if(b1 < 45){
-                                sortByXAxis(tmp1);
-                                sortByXAxis(tmp2);
-                            }else{
-                                sortByYAxis(tmp1);
-                                sortByYAxis(tmp2);
-                            }
-
-                            fit1 = new Line2d(base1.begin, base2.begin);
-                            fit2 = new Line2d(base1.end, base2.end);
-
-                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
-                            if(lh!=null) {
-                                res.add(lh);
-                                detected = true;
-                            }
-                        }
+//                        if(!detected){
+//                            Line2d tmp1 = base1.clone();
+//                            Line2d tmp2 = base2.clone();
+//                            // added 2 dummy lines
+//                            if(b1 < 45){
+//                                sortByXAxis(tmp1);
+//                                sortByXAxis(tmp2);
+//                            }else{
+//                                sortByYAxis(tmp1);
+//                                sortByYAxis(tmp2);
+//                            }
+//
+//                            fit1 = new Line2d(base1.begin, base2.begin);
+//                            fit2 = new Line2d(base1.end, base2.end);
+//
+//                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+//                            if(lh!=null) {
+//                                res.add(lh);
+//                                detected = true;
+//                            }
+//                        }
                     }
                 }
             }
@@ -264,8 +264,8 @@ public class App {
 
         double bases_distance = (base1.distanceToLine(base2.begin) + base1.distanceToLine(base2.end))/2d;
 
-        if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f1) >= 90 - angle_step*2) {
-            if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step*2 || calcAngleDiffInDegree(b2, f2) >= 90 - angle_step*2) {
+        if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step*2 && calcAngleDiffInDegree(b2, f1) >= 90 - angle_step*2) {
+            if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step*2 && calcAngleDiffInDegree(b2, f2) >= 90 - angle_step*2) {
                 LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
                 double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
                 double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
