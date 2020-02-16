@@ -1027,7 +1027,7 @@ public class LSD {
 
         double[] return_value;
         ImageDouble angles;
-        boolean used[];
+        boolean[] used;
 
         Rect rec = new Rect();
 
@@ -1062,7 +1062,6 @@ public class LSD {
                 / 2.0 + Math.log10(11.0);
         min_reg_size = (int) (-logNT / Math.log10(p));
 
-//        used = new ImageChar(width, height, NOTUSED);
 		used = new boolean[width*height];
 		Arrays.fill(used, NOTUSED);
 
@@ -1152,26 +1151,9 @@ public class LSD {
 
     }
 
-    /*----------------------------------------------------------------------------*/
-
-    /**
-     * LSD Simple Interface with Scale.
-     */
-    double[] lsd_scale() {
-        return lsd_scale_region();
-
-    }
 
     int n_out;
 
-    /*----------------------------------------------------------------------------*/
-
-    /**
-     * LSD Simple Interface.
-     */
-    double[] lsd() {
-        return lsd_scale();
-    }
 
     /*----------------------------------------------------------------------------*/
     private int width, height;
@@ -1181,7 +1163,7 @@ public class LSD {
     public List<Line2d> getLines() {
         List<Line2d> lines = new ArrayList<>();
 
-        double[] out = lsd();
+        double[] out = lsd_scale_region();
 
         for (int i = 0; i < this.n_out; i++) {
             for (int j = 0; j < 7; j++) {

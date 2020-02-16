@@ -6,10 +6,9 @@ import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.processing.algorithm.GammaCorrection;
+import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
-import org.openimaj.image.processor.ImageProcessor;
-import org.openimaj.image.processor.PixelProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
@@ -34,7 +33,7 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
     public static final int V_CHANNEL_ID = 2;
 
-    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
+    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/s";
     public static final double GAMMA = 2d;
 
 
@@ -140,8 +139,45 @@ public class App {
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
-                    detectWithCanny(file, fout);
+                    detectLSD(file, fout);
             }
+    }
+    private static Tetragram detectLSD(File fin, File fout) throws IOException {
+
+        MBFImage frame = ImageUtilities.readMBF(fin);
+        scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+
+        frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
+
+        width = frame.getWidth();
+        height = frame.getHeight();
+
+        System.out.println("processing: " + fin.getName() + "...");
+        GammaCorrection gc = new GammaCorrection(GAMMA);
+        for (int i = 0; i < frame.numBands(); i++) {
+            frame.getBand(i).processInplace(gc);
+        }
+
+        Point2dImpl center = new Point2dImpl(width / 2, height / 2);
+
+        List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
+
+        removeSimilarAndNoiseLines(lines);
+
+        System.out.println("After merge: " + lines.size());
+
+        drawLines(frame, center, lines, RGBColour.GRAY);
+
+        List<LineHolder> results = findBounds(lines);
+
+
+        if (!results.isEmpty())
+            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+
+
+        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+        return null;
     }
 
     private static Tetragram detectWithCanny(File fin, File fout) throws IOException {
@@ -162,8 +198,6 @@ public class App {
             frame.getBand(i).processInplace(gc);
         }
 
-//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
-
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 //        hsv.getBand(0).fill(0);
 //        hsv.getBand(2).fill(0);
@@ -176,13 +210,12 @@ public class App {
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
 
-//        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
-//        ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
+        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
+        ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
-//        List<Line2d> lines = getLinesUsingHoughTransformP(edges);
-        List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
+        List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
-//        System.out.println("Before merge: "+lines.size());
+        System.out.println("Before merge: "+lines.size());
         removeSimilarAndNoiseLines(lines);
 
         System.out.println("After merge: " + lines.size());
