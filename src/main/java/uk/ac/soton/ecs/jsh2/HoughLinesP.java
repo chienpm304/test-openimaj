@@ -46,7 +46,7 @@ public class HoughLinesP {
     }
 
     private void initialize() {
-        this.numangle = (int)Math.round(Math.PI / theta);
+        this.numangle = (int) Math.round(Math.PI / theta);
         this.numrho = (int) Math.round(((width + height) * 2 + 1) / rho);
 
         this.accum = new int[numangle][];
@@ -58,16 +58,16 @@ public class HoughLinesP {
         this.cosCache = new float[numangle];
         this.sinCache = new float[numangle];
 
-        for(int i = 0; i < numangle; i++){
-            cosCache[i] = (float) (Math.cos((double)i * theta) / rho);
-            sinCache[i] = (float) (Math.sin((double)i * theta) / rho);
+        for (int i = 0; i < numangle; i++) {
+            cosCache[i] = (float) (Math.cos((double) i * theta) / rho);
+            sinCache[i] = (float) (Math.sin((double) i * theta) / rho);
         }
 
         // stage 1. collect non-zero image points
-        for(Point2d p: nonZeroPoints){
+        for (Point2d p : nonZeroPoints) {
             int x = (int) p.getX();
             int y = (int) p.getY();
-            mask[x + y*width] = true;
+            mask[x + y * width] = true;
         }
 
         // Shuffle the array randomly
@@ -76,15 +76,15 @@ public class HoughLinesP {
 
     }
 
-    List<Line2d> getLines(){
+    List<Line2d> getLines() {
         List<Line2d> lines = new ArrayList<>();
 
         // stage 2. process all the points in random order
-        for(Point2d p: nonZeroPoints){
+        for (Point2d p : nonZeroPoints) {
             int col = (int) p.getX();
             int row = (int) p.getY();
 
-            if(!mask[row*width+col]) {
+            if (!mask[row * width + col]) {
                 continue;
             }
 
@@ -92,14 +92,14 @@ public class HoughLinesP {
             int maxThetaIndex = 0;
 
             //update accumulator, find the most probable line
-            for(int thetaIndex = 0; thetaIndex < numangle; thetaIndex++){
-                int rho = (int)Math.round(col * cosCache[thetaIndex] + row * sinCache[thetaIndex]);
+            for (int thetaIndex = 0; thetaIndex < numangle; thetaIndex++) {
+                int rho = (int) Math.round(col * cosCache[thetaIndex] + row * sinCache[thetaIndex]);
                 rho += (numrho - 1) / 2;
 
-                if(rho >= numrho)
+                if (rho >= numrho)
                     throw new RuntimeException("rho out of index");
 
-                if (accum[thetaIndex]==null) {
+                if (accum[thetaIndex] == null) {
                     accum[thetaIndex] = new int[numrho];
                     Arrays.fill(accum[thetaIndex], 0);
                 }
@@ -116,7 +116,7 @@ public class HoughLinesP {
                 }
             }
 
-            if(maxVal < threshold)
+            if (maxVal < threshold)
                 continue;
 
             // from the current point walk in each direction
@@ -142,7 +142,7 @@ public class HoughLinesP {
                 x0 = (x0 << shift) + (1 << (shift - 1));
             }
 
-            for(int k = 0; k < 2; k++){
+            for (int k = 0; k < 2; k++) {
                 int gap = 0;
                 int x = x0;
                 int y = y0;
@@ -150,7 +150,7 @@ public class HoughLinesP {
                 int dy = dy0;
 
                 //Walk in the opposite direction for the second point
-                if(k>0){
+                if (k > 0) {
                     dx = -dx;
                     dy = -dy;
                 }
@@ -229,7 +229,7 @@ public class HoughLinesP {
                                         j1 * cosCache[thetaIndex] + i1 * sinCache[thetaIndex]
                                 );
                                 rho += (numrho - 1) / 2;
-                                if (accum[thetaIndex]!=null && accum[thetaIndex][rho] != 0) {
+                                if (accum[thetaIndex] != null && accum[thetaIndex][rho] != 0) {
                                     accum[thetaIndex][rho]--;
                                 }
                             }
@@ -242,10 +242,10 @@ public class HoughLinesP {
                 }
             }
 
-            if(goodLine){
+            if (goodLine) {
                 Line2d l = new Line2d(lineEnds[0][0], lineEnds[0][1],
                         lineEnds[1][0], lineEnds[1][1]);
-                if(l.begin.getX() > l.end.getX()){
+                if (l.begin.getX() > l.end.getX()) {
                     Point2d tmp = l.getBeginPoint();
                     l.setBeginPoint(l.getEndPoint());
                     l.setEndPoint(tmp);
@@ -253,7 +253,7 @@ public class HoughLinesP {
 
                 lines.add(l);
 
-                if(lines.size() >= linesMax) {
+                if (lines.size() >= linesMax) {
                     return lines;
                 }
             }

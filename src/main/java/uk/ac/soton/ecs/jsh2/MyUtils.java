@@ -21,7 +21,8 @@ import static uk.ac.soton.ecs.jsh2.App.THRESHOLD_STEP;
 public class MyUtils {
     static int width = 720;
     static int height = 1080;
-    private static List<Line2d> selectRawLines(Point2d center, List<Line2d> lines){
+
+    private static List<Line2d> selectRawLines(Point2d center, List<Line2d> lines) {
         Line2d top = null, right = null, bottom = null, left = null;
         top = findTop(width, height, center, lines);
         lines.remove(top);
@@ -59,7 +60,6 @@ public class MyUtils {
         lines.remove(left);
 
 
-
 //        System.out.println("Top: "+top);
 //        System.out.println("Bottom: "+bottom);
 //        System.out.println("Right: "+right);
@@ -75,16 +75,16 @@ public class MyUtils {
     }
 
     private static Point2d findLinesIntersection(Line2d line1, Line2d line2) {
-        Point2d p = new Point2dImpl(0,0);
+        Point2d p = new Point2dImpl(0, 0);
         Line2d.IntersectionResult result = MyHelper.findIntersection(line1, line2);
-        if(result.type == Line2d.IntersectionType.INTERSECTING){
+        if (result.type == Line2d.IntersectionType.INTERSECTING) {
             p = result.intersectionPoint;
-            if(p.getX() < 0) p.setX(0);
-            else if(p.getX() >= width) p.setX(width-1);
-            if(p.getY() < 0) p.setY(0);
-            else if(p.getY() >= height) p.setY(height-1);
-        }else{
-            System.out.println("Not intersecting: "+line1+" with "+line2);
+            if (p.getX() < 0) p.setX(0);
+            else if (p.getX() >= width) p.setX(width - 1);
+            if (p.getY() < 0) p.setY(0);
+            else if (p.getY() >= height) p.setY(height - 1);
+        } else {
+            System.out.println("Not intersecting: " + line1 + " with " + line2);
         }
         return p;
     }
@@ -93,13 +93,13 @@ public class MyUtils {
         double max = -1;
         int threshold = 0;
         Line2d top = null;
-        while (top == null && threshold < height/3){
+        while (top == null && threshold < height / 3) {
             max = -1;
             for (Line2d l : lines) {
                 if (l.begin.getY() < center.getY() + threshold
                         && l.end.getY() < center.getY() + threshold
 //                        && Math.abs(l.begin.getY() - l.end.getY()) < height/1.5f) {
-                ){
+                ) {
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         top = l;
@@ -108,8 +108,8 @@ public class MyUtils {
             }
             threshold += THRESHOLD_STEP;
         }
-        if(top == null)
-            top = new Line2d(0,0, width-1, 0);
+        if (top == null)
+            top = new Line2d(0, 0, width - 1, 0);
         return top;
     }
 
@@ -117,13 +117,13 @@ public class MyUtils {
         double max;
         int threshold = 0;
         Line2d right = null;
-        while (right == null && threshold < width/3){
+        while (right == null && threshold < width / 3) {
             max = -1;
             for (Line2d l : lines) {
                 if (l.begin.getX() > center.getX() - threshold
-                        && l.end.getX() > center.getX()-threshold
+                        && l.end.getX() > center.getX() - threshold
 //                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
-                ){
+                ) {
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         right = l;
@@ -132,8 +132,8 @@ public class MyUtils {
             }
             threshold += THRESHOLD_STEP;
         }
-        if(right == null)
-            right = new Line2d(width-1,0, width-1, height-1);
+        if (right == null)
+            right = new Line2d(width - 1, 0, width - 1, height - 1);
         return right;
     }
 
@@ -141,13 +141,13 @@ public class MyUtils {
         double max;
         int threshold = 0;
         Line2d bottom = null;
-        while (bottom == null && threshold < height/3){
+        while (bottom == null && threshold < height / 3) {
             max = -1;
             for (Line2d l : lines) {
                 if (l.begin.getY() > center.getY() - threshold
                         && l.end.getY() > center.getY() - threshold
 //                        && Math.abs(l.begin.getY()-l.end.getY())<height/1.5f) {
-                ){
+                ) {
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         bottom = l;
@@ -156,8 +156,8 @@ public class MyUtils {
             }
             threshold += THRESHOLD_STEP;
         }
-        if(bottom == null)
-            bottom = new Line2d(0,height-1, width-1, height-1);
+        if (bottom == null)
+            bottom = new Line2d(0, height - 1, width - 1, height - 1);
         return bottom;
     }
 
@@ -165,13 +165,13 @@ public class MyUtils {
         double max;
         int threshold = 0;
         Line2d left = null;
-        while (left == null && threshold < width/3){
+        while (left == null && threshold < width / 3) {
             max = -1;
             for (Line2d l : lines) {
                 if (l.begin.getX() < center.getX() + threshold
                         && l.end.getX() < center.getX() + threshold
 //                        && Math.abs(l.begin.getX() - l.end.getX()) < width/1.5f) {
-                ){
+                ) {
                     if (l.calculateLength() > max) {
                         max = l.calculateLength();
                         left = l;
@@ -180,11 +180,10 @@ public class MyUtils {
             }
             threshold += THRESHOLD_STEP;
         }
-        if(left == null)
-            left = new Line2d(0, 0, 0, height-1);
+        if (left == null)
+            left = new Line2d(0, 0, 0, height - 1);
         return left;
     }
-
 
 
 //    private static Tetragram detectWithCustomProcessing(File fin, File folder) throws IOException {
@@ -271,34 +270,34 @@ public class MyUtils {
 
         double A[][] = new double[8][8];
         // A x h = b -> find h = (A)^-1 x b
-        for(int i =0; i < 4; i++){
-            A[2*i][0] = src[i][0];
-            A[2*i][1] = src[i][1];
-            A[2*i][2] = 1;
-            A[2*i][3] = 0;
-            A[2*i][4] = 0;
-            A[2*i][5] = 0;
-            A[2*i][6] = -src[i][0]*dst[i][0];
-            A[2*i][7] = -dst[i][0]*src[i][1];
+        for (int i = 0; i < 4; i++) {
+            A[2 * i][0] = src[i][0];
+            A[2 * i][1] = src[i][1];
+            A[2 * i][2] = 1;
+            A[2 * i][3] = 0;
+            A[2 * i][4] = 0;
+            A[2 * i][5] = 0;
+            A[2 * i][6] = -src[i][0] * dst[i][0];
+            A[2 * i][7] = -dst[i][0] * src[i][1];
 
-            A[2*i + 1][0] = 0;
-            A[2*i + 1][1] = 0;
-            A[2*i + 1][2] = 0;
-            A[2*i + 1][3] = src[i][0];
-            A[2*i + 1][4] = src[i][1];
-            A[2*i + 1][5] = 1;
-            A[2*i + 1][6] = -src[i][0]*dst[i][1];
-            A[2*i + 1][7] = -src[i][1]*dst[i][1];
+            A[2 * i + 1][0] = 0;
+            A[2 * i + 1][1] = 0;
+            A[2 * i + 1][2] = 0;
+            A[2 * i + 1][3] = src[i][0];
+            A[2 * i + 1][4] = src[i][1];
+            A[2 * i + 1][5] = 1;
+            A[2 * i + 1][6] = -src[i][0] * dst[i][1];
+            A[2 * i + 1][7] = -src[i][1] * dst[i][1];
         }
 
         // build A (8x8)
         Matrix matrixA = new Matrix(A);
 
         // build b (8x1)
-        double []b = new double[8];
-        for(int i = 0; i<4; i++){
-            b[2*i] = dst[i][0];
-            b[2*i+1] = dst[i][1];
+        double[] b = new double[8];
+        for (int i = 0; i < 4; i++) {
+            b[2 * i] = dst[i][0];
+            b[2 * i + 1] = dst[i][1];
         }
 
         Matrix matrixB = new Matrix(b, 8);
@@ -307,10 +306,10 @@ public class MyUtils {
 
         // reshape to 3x3
         double[] flat = trsf.getColumnPackedCopy();
-        Matrix trf3x3 = new Matrix(3,3);
-        for(int i = 0; i<8; i++)
-            trf3x3.set(i/3, i%3, flat[i]);
-        trf3x3.set(2,2, 1);
+        Matrix trf3x3 = new Matrix(3, 3);
+        for (int i = 0; i < 8; i++)
+            trf3x3.set(i / 3, i % 3, flat[i]);
+        trf3x3.set(2, 2, 1);
 
         return trf3x3;
     }

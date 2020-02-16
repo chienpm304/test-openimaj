@@ -25,7 +25,6 @@ public class MyHelper {
     }
 
 
-
     public static FImage thresholdInv(FImage img, final Float thresh) {
         final float fthresh = thresh;
         for (int r = 0; r < img.height; r++) {
@@ -45,21 +44,21 @@ public class MyHelper {
         float x_max = -1;
         float y_min = Float.MAX_VALUE;
         float y_max = -1;
-        float x,y;
-        for(Point2d p: points){
+        float x, y;
+        for (Point2d p : points) {
             x = p.getX();
             y = p.getY();
-            if(x > x_max) x_max = x;
-            if(x < x_min) x_min = x;
-            if(y < y_min) y_min = y;
-            if(y > y_max) y_max = y;
+            if (x > x_max) x_max = x;
+            if (x < x_min) x_min = x;
+            if (y < y_min) y_min = y;
+            if (y > y_max) y_max = y;
 
         }
 
         Point2dImpl
                 tl = new Point2dImpl(x_min, y_max),
-                tr =new Point2dImpl(x_max, y_max),
-                bl = new Point2dImpl(x_min,y_min),
+                tr = new Point2dImpl(x_max, y_max),
+                bl = new Point2dImpl(x_min, y_min),
                 br = new Point2dImpl(x_max, y_min);
 
         Point2dImpl r_tl = br.clone(), r_tr = bl.clone(), r_bl = tr.clone(), r_br = tl.clone();
@@ -67,30 +66,27 @@ public class MyHelper {
 
         float width = x_max - x_min, height = y_max - y_min;
 
-        for(Point2d p: points){
+        for (Point2d p : points) {
             x = p.getX();
             y = p.getY();
             //top left
-            if(x < width/2 && y>height/2){
-                if(MyHelper.distance(p, tl) < MyHelper.distance(r_tl, tl)){
+            if (x < width / 2 && y > height / 2) {
+                if (MyHelper.distance(p, tl) < MyHelper.distance(r_tl, tl)) {
                     r_tl.x = p.getX();
                     r_tl.y = p.getY();
                 }
-            }
-            else if(x > width/2 && y > height/2) {// top right
-                if(MyHelper.distance(p, tr) < MyHelper.distance(r_tr, tr)){
+            } else if (x > width / 2 && y > height / 2) {// top right
+                if (MyHelper.distance(p, tr) < MyHelper.distance(r_tr, tr)) {
                     r_tr.x = p.getX();
                     r_tr.y = p.getY();
                 }
-            }
-            else if(x < width/2 && y < height/2) {// bottom left
-                if(MyHelper.distance(p, bl) < MyHelper.distance(r_bl, bl)){
+            } else if (x < width / 2 && y < height / 2) {// bottom left
+                if (MyHelper.distance(p, bl) < MyHelper.distance(r_bl, bl)) {
                     r_bl.x = p.getX();
                     r_bl.y = p.getY();
                 }
-            }
-            else {//bottom right
-                if(MyHelper.distance(p, br) < MyHelper.distance(r_br, br)){
+            } else {//bottom right
+                if (MyHelper.distance(p, br) < MyHelper.distance(r_br, br)) {
                     r_br.x = p.getX();
                     r_br.y = p.getY();
                 }
@@ -99,10 +95,10 @@ public class MyHelper {
         }
 
         // small add]just
-        if(MyHelper.distance(r_bl, bl) > width/3) r_bl = bl;
-        if(MyHelper.distance(r_tl, tl) > width/3) r_tl = tl;
-        if(MyHelper.distance(r_br, br) > width/3) r_br = br;
-        if(MyHelper.distance(r_tr, tr) > width/3) r_tr = tr;
+        if (MyHelper.distance(r_bl, bl) > width / 3) r_bl = bl;
+        if (MyHelper.distance(r_tl, tl) > width / 3) r_tl = tl;
+        if (MyHelper.distance(r_br, br) > width / 3) r_br = br;
+        if (MyHelper.distance(r_tr, tr) > width / 3) r_tr = tr;
 
         List<Point2d> res = new ArrayList<>();
         res.add(r_tl);
@@ -130,17 +126,17 @@ public class MyHelper {
         float mc = l2.begin.getX() * l2.end.getY();
         float md = l2.end.getX() * l2.begin.getY();
 
-        float du = dx2*dy1 - dx1*dy2;
-        if(du == 0.0f || (dx1 == 0.0f && dx2 ==0.0f) ){
+        float du = dx2 * dy1 - dx1 * dy2;
+        if (du == 0.0f || (dx1 == 0.0f && dx2 == 0.0f)) {
             return new Line2d.IntersectionResult(Line2d.IntersectionType.NOT_INTERESECTING);
-        }else{
-            float x = (dx1*(mc-md) - dx2*(ma-mb))/du;
+        } else {
+            float x = (dx1 * (mc - md) - dx2 * (ma - mb)) / du;
             float y;
-            if(dx1 != 0.0f){
-                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((ma-mb + x*dy1)/dx1)));
-            }else if(dx2 != 0){
-                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((mc-md + x*dy2)/dx2)));
-            }else {
+            if (dx1 != 0.0f) {
+                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((ma - mb + x * dy1) / dx1)));
+            } else if (dx2 != 0) {
+                return new Line2d.IntersectionResult(new Point2dImpl(Math.round(x), Math.round((mc - md + x * dy2) / dx2)));
+            } else {
                 return new Line2d.IntersectionResult(Line2d.IntersectionType.NOT_INTERESECTING);
             }
         }
@@ -305,34 +301,34 @@ public class MyHelper {
 
         double A[][] = new double[8][8];
         // A x h = b -> find h = (A)^-1 x b
-        for(int i =0; i < 4; i++){
-            A[2*i][0] = src[i][0];
-            A[2*i][1] = src[i][1];
-            A[2*i][2] = 1;
-            A[2*i][3] = 0;
-            A[2*i][4] = 0;
-            A[2*i][5] = 0;
-            A[2*i][6] = -src[i][0]*dst[i][0];
-            A[2*i][7] = -dst[i][0]*src[i][1];
+        for (int i = 0; i < 4; i++) {
+            A[2 * i][0] = src[i][0];
+            A[2 * i][1] = src[i][1];
+            A[2 * i][2] = 1;
+            A[2 * i][3] = 0;
+            A[2 * i][4] = 0;
+            A[2 * i][5] = 0;
+            A[2 * i][6] = -src[i][0] * dst[i][0];
+            A[2 * i][7] = -dst[i][0] * src[i][1];
 
-            A[2*i + 1][0] = 0;
-            A[2*i + 1][1] = 0;
-            A[2*i + 1][2] = 0;
-            A[2*i + 1][3] = src[i][0];
-            A[2*i + 1][4] = src[i][1];
-            A[2*i + 1][5] = 1;
-            A[2*i + 1][6] = -src[i][0]*dst[i][1];
-            A[2*i + 1][7] = -src[i][1]*dst[i][1];
+            A[2 * i + 1][0] = 0;
+            A[2 * i + 1][1] = 0;
+            A[2 * i + 1][2] = 0;
+            A[2 * i + 1][3] = src[i][0];
+            A[2 * i + 1][4] = src[i][1];
+            A[2 * i + 1][5] = 1;
+            A[2 * i + 1][6] = -src[i][0] * dst[i][1];
+            A[2 * i + 1][7] = -src[i][1] * dst[i][1];
         }
 
         // build A (8x8)
         Matrix matrixA = new Matrix(A);
 
         // build b (8x1)
-        double []b = new double[8];
-        for(int i = 0; i<4; i++){
-            b[2*i] = dst[i][0];
-            b[2*i+1] = dst[i][1];
+        double[] b = new double[8];
+        for (int i = 0; i < 4; i++) {
+            b[2 * i] = dst[i][0];
+            b[2 * i + 1] = dst[i][1];
         }
 
         Matrix matrixB = new Matrix(b, 8);
@@ -341,10 +337,10 @@ public class MyHelper {
 
         // reshape to 3x3
         double[] flat = trsf.getColumnPackedCopy();
-        Matrix trf3x3 = new Matrix(3,3);
-        for(int i = 0; i<8; i++)
-            trf3x3.set(i/3, i%3, flat[i]);
-        trf3x3.set(2,2, 1);
+        Matrix trf3x3 = new Matrix(3, 3);
+        for (int i = 0; i < 8; i++)
+            trf3x3.set(i / 3, i % 3, flat[i]);
+        trf3x3.set(2, 2, 1);
 
         return trf3x3;
     }
@@ -360,9 +356,9 @@ public class MyHelper {
 
         float[][] rect = new float[][]{
                 {0, 0},
-                {newWidth-1, 0},
-                {newWidth-1, newHeight-1},
-                {0, newHeight-1}
+                {newWidth - 1, 0},
+                {newWidth - 1, newHeight - 1},
+                {0, newHeight - 1}
         };
 
         return new Tetragram(rect);
