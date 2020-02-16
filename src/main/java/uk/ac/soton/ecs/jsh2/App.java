@@ -151,8 +151,7 @@ public class App {
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
         frame = frame.process(new ResizeProcessor(scaleFactor));
-        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
-        if(true) return null;
+//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
 
         width = frame.getWidth();
         height = frame.getHeight();
@@ -162,9 +161,13 @@ public class App {
         for (int i = 0; i < frame.numBands(); i++) {
             frame.getBand(i).processInplace(gc);
         }
+
 //        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
 
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
+//        hsv.getBand(0).fill(0);
+//        hsv.getBand(2).fill(0);
+
 //
 //        ImageUtilities.write(hsv.getBand(0), new File(fout.getAbsolutePath()+"/h/"+fin.getName()));
 //        ImageUtilities.write(hsv.getBand(1), new File(fout.getAbsolutePath()+"/s/"+fin.getName()));
@@ -173,14 +176,15 @@ public class App {
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
 
-        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
-        ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
+//        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
+//        ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
 //        List<Line2d> lines = getLinesUsingHoughTransformP(edges);
         List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
 
 //        System.out.println("Before merge: "+lines.size());
         removeSimilarAndNoiseLines(lines);
+
         System.out.println("After merge: " + lines.size());
 
         drawLines(frame, center, lines, RGBColour.GRAY);
@@ -265,9 +269,9 @@ public class App {
         }
         Collections.sort(res);
         System.out.println("Detected " + res.size() + " bounds");
-        for (LineHolder lh : res) {
-            System.out.println(lh.toString());
-        }
+//        for (LineHolder lh : res) {
+//            System.out.println(lh.toString());
+//        }
 
 
         return res;
@@ -394,6 +398,15 @@ public class App {
                     lines.set(i, kpLine);
                     l1 = lines.get(i);
                 }
+            }
+        }
+        for (int i = 0; i < lines.size(); i++) {
+            Line2d l = lines.get(i);
+
+            if (l.calculateLength() < HOUGH_LINE_LENGTH) {
+
+                lines.remove(i);
+                i--;
             }
         }
         return lines;
