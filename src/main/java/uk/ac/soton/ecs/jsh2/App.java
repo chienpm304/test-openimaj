@@ -5,8 +5,11 @@ import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
+import org.openimaj.image.processing.algorithm.GammaCorrection;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
+import org.openimaj.image.processor.ImageProcessor;
+import org.openimaj.image.processor.PixelProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
@@ -26,9 +29,13 @@ import static java.lang.Math.PI;
 public class App {
     public static final float THRESHOLD_BIN_INV = 0.07133f;
     public static final float STANDARD_WIDTH = 720;
+    public static final int H_CHANNEL_ID = 0;
     public static final int S_CHANNEL_ID = 1;
+    public static final int V_CHANNEL_ID = 2;
 
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
+    public static final double GAMMA = 2d;
+
 
     public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
@@ -56,7 +63,7 @@ public class App {
     public static int HOUGH_LINE_LENGTH = 150;
 
     private static final int LINE_GAP_REMOVAL = 20;
-    private static final int BOUNDING_GAP_REMOVAL = 0;
+    private static final int BOUNDING_GAP_REMOVAL = 3;
 
     public static final int HISTOGRAM_NBINS = 64;
 
@@ -102,7 +109,7 @@ public class App {
                                 LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA+"_"+CANNY_LOW_THRESH+"_"+CANNY_HIGH_THRESH;
                                 fout = new File(LINUX_DIR_OUT);
                                 if(!fout.exists()) fout.mkdirs();
-                                FImage edges = applyCannyDetector(hsv, file, fout);
+                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), file, fout);
                                 ImageUtilities.write(edges, new File(fout.getAbsolutePath()+"/"+file.getName()));
 
                             }
@@ -143,19 +150,28 @@ public class App {
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
         frame = frame.process(new ResizeProcessor(scaleFactor));
+
         width = frame.getWidth();
         height = frame.getHeight();
 
         System.out.println("processing: " + fin.getName() +"...");
-
+        GammaCorrection gc = new GammaCorrection(GAMMA);
+        for(int i = 0; i < frame.numBands(); i++){
+            frame.getBand(i).processInplace(gc);
+        }
+//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
 
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
+//
+//        ImageUtilities.write(hsv.getBand(0), new File(fout.getAbsolutePath()+"/h/"+fin.getName()));
+//        ImageUtilities.write(hsv.getBand(1), new File(fout.getAbsolutePath()+"/s/"+fin.getName()));
+//        ImageUtilities.write(hsv.getBand(2), new File(fout.getAbsolutePath()+"/v/"+fin.getName()));
+//        if(1==1) return null;
         Point2dImpl center =  new Point2dImpl(width/2, height/2);
 
 
 
-        FImage edges = applyCannyDetector(hsv, fin, fout);
+        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
         ImageUtilities.write(edges, new File(fout.getAbsolutePath()+"/edged/"+fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
@@ -219,27 +235,27 @@ public class App {
                             }
                         }
 
-//                        if(!detected){
-//                            Line2d tmp1 = base1.clone();
-//                            Line2d tmp2 = base2.clone();
-//                            // added 2 dummy lines
-//                            if(b1 < 45){
-//                                sortByXAxis(tmp1);
-//                                sortByXAxis(tmp2);
-//                            }else{
-//                                sortByYAxis(tmp1);
-//                                sortByYAxis(tmp2);
-//                            }
-//
-//                            fit1 = new Line2d(base1.begin, base2.begin);
-//                            fit2 = new Line2d(base1.end, base2.end);
-//
-//                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
-//                            if(lh!=null) {
-//                                res.add(lh);
-//                                detected = true;
-//                            }
-//                        }
+                        if(!detected){
+                            Line2d tmp1 = base1.clone();
+                            Line2d tmp2 = base2.clone();
+                            // added 2 dummy lines
+                            if(b1 < 45){
+                                sortByXAxis(tmp1);
+                                sortByXAxis(tmp2);
+                            }else{
+                                sortByYAxis(tmp1);
+                                sortByYAxis(tmp2);
+                            }
+
+                            fit1 = new Line2d(base1.begin, base2.begin);
+                            fit2 = new Line2d(base1.end, base2.end);
+
+                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+                            if(lh!=null) {
+                                res.add(lh);
+                                detected = true;
+                            }
+                        }
                     }
                 }
             }
@@ -493,9 +509,9 @@ public class App {
 
 
 
-    private static FImage applyCannyDetector(MBFImage frame, File fin, File fout) throws IOException {
+    private static FImage applyCannyDetector(FImage grey, File fin, File fout) throws IOException {
         CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
-        FImage grey = frame.getBand(S_CHANNEL_ID);
+//        FImage grey = frame.getBand(S_CHANNEL_ID);
 
 
 //        grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
