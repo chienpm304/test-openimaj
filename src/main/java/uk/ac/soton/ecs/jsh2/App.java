@@ -59,7 +59,7 @@ public class App {
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
     public static int HOUGHLINE_THRESHOLD = 80;
-    public static int HOUGH_LINE_LENGTH = 150/4;
+    public static int HOUGH_LINE_LENGTH = 150/2;
 
     private static final int LINE_GAP_REMOVAL = 20;
     private static final int BOUNDING_GAP_REMOVAL = 3;
@@ -179,9 +179,11 @@ public class App {
         List<LineHolder> results = findBounds(lines);
 
 
-        if (!results.isEmpty())
+        if (!results.isEmpty()) {
             drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
-
+//            if(results.size()>1)
+//                drawBound(frame, center, results.get(1).lines, RGBColour.BLUE, RGBColour.RED);
+        }
 
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
@@ -244,7 +246,7 @@ public class App {
         double b1, b2, f1, f2;
         int n = lines.size();
         boolean addDummyLine = false;
-        int angle_step = 5;
+        int angle_step = 10;
         boolean detected = false;
 
         while (res.isEmpty() && angle_step <= 45) {
@@ -333,6 +335,8 @@ public class App {
                 double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
 
                 double fits_distance = (fit1.distanceToLine(fit2.begin) + fit1.distanceToLine(fit2.end)) / 2d;
+
+                //todo: check fit lines one 2 side of bases
 
 
                 lh.rank =
@@ -434,6 +438,11 @@ public class App {
                 }
             }
         }
+        double sum = 0;
+        for(Line2d l: lines) sum+=l.calculateLength();
+
+        double avgLength = sum/lines.size();
+
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
 
