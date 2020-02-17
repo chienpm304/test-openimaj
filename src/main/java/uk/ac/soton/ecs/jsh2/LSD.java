@@ -1214,6 +1214,28 @@ public class LSD {
 
     }
 
+    public LSD(final int[] data, int width, int height) {
+        this.width = width;
+        this.height = height;
+
+        float[] arr2 = new float[width * height];
+
+        for (int i = 0; i < arr2.length; i++) {
+            final int rgb = data[i];
+            final int alpha = ((rgb >> 24) & 0xff);
+            final int red = ((rgb >> 16) & 0xff);
+            final int green = ((rgb >> 8) & 0xff);
+            final int blue = ((rgb) & 0xff);
+            float level = red * 0.2126f + green * 0.7152f + blue* 0.0722f;
+            arr2[i] = level;
+        }
+        imageData = arr2;
+
+    }
+
+
+
+
     public float[] getDoublePixelVector(MBFImage image) {
         int height = image.getHeight();
         int width = image.getWidth();
