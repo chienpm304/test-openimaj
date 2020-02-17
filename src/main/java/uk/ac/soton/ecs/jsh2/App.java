@@ -39,7 +39,7 @@ public class App {
 
     public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
-    private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
+    private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in2";
     private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
@@ -51,8 +51,8 @@ public class App {
 
     public static final float GAUSSIAN_BLUR_SIGMA = 3f;
 
-    public static float CANNY_LOW_THRESH = 0.01f;
-    public static float CANNY_HIGH_THRESH = 0.05f;
+    public static float CANNY_LOW_THRESH = 0.03f;
+    public static float CANNY_HIGH_THRESH = 0.1f;
     public static float CANNY_SIGMA = 5f;
 
     public static final double HOUGH_LINE_RHO = 1;
@@ -83,54 +83,6 @@ public class App {
 //        testAngleGap();
 //        detectWithCanny(new File(LINUX_DIR_IN+"/8.jpg"), new File(LINUX_DIR_OUT));
 //        bruteForceCanny();
-    }
-
-    private static void bruteForceCanny() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(LINUX_DIR_OUT);
-        if (fin.exists() && fin.isDirectory())
-            for (final File file : fin.listFiles()) {
-                if (file.isFile()) {
-
-                    MBFImage frame = ImageUtilities.readMBF(file);
-                    scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
-                    scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
-
-                    frame = frame.process(new ResizeProcessor(scaleFactor));
-                    width = frame.getWidth();
-                    height = frame.getHeight();
-
-                    MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
-                    for (CANNY_SIGMA = 3f; CANNY_SIGMA < 6; CANNY_SIGMA += 2f) {
-                        for (CANNY_LOW_THRESH = 0.01f; CANNY_LOW_THRESH < 0.2; CANNY_LOW_THRESH += 0.03) {
-                            for (CANNY_HIGH_THRESH = CANNY_LOW_THRESH + 0.05f; CANNY_HIGH_THRESH < 0.3; CANNY_HIGH_THRESH += 0.03) {
-                                LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA + "_" + CANNY_LOW_THRESH + "_" + CANNY_HIGH_THRESH;
-                                fout = new File(LINUX_DIR_OUT);
-                                if (!fout.exists()) fout.mkdirs();
-                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), file, fout);
-                                ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/" + file.getName()));
-
-                            }
-                        }
-                    }
-                }
-            }
-
-    }
-
-    private static void testAngleGap() {
-        System.out.println(calcAngleDiffInDegree(-89, 89));
-    }
-
-    private static void testMergeLines() {
-        Line2d line1 = new Line2d(1, 1, 1, 6);
-        Line2d line2 = new Line2d(1.2f, 4.8f, 1.2f, 6.5f);
-        System.out.println("before merge: ");
-        System.out.println("keep: " + line1.toString());
-
-        mergeLine(line1, line2);
-        System.out.println("after merge: " + line1.toString());
     }
 
     private static void testDetectBox() throws IOException {
@@ -180,12 +132,12 @@ public class App {
 
 
         if (!results.isEmpty()) {
-//            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
 
             LineHolder lh = results.get(0);
             Tetragram tetragram = lh.getBounding(width, height);
 
-            drawBound(frame, center, tetragram.toLineList(), RGBColour.GREEN, RGBColour.GREEN);
+//            drawBound(frame, center, tetragram.toLineList(), RGBColour.GREEN, RGBColour.GREEN);
 
             ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
 
@@ -220,7 +172,7 @@ public class App {
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
 
-        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
+        FImage edges = applyCannyDetector(hsv.getBand(1), fin, fout);
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
@@ -284,27 +236,27 @@ public class App {
                             }
                         }
 
-                        if (!detected) {
-                            Line2d tmp1 = base1.clone();
-                            Line2d tmp2 = base2.clone();
-                            // added 2 dummy lines
-                            if (b1 < 45) {
-                                sortByXAxis(tmp1);
-                                sortByXAxis(tmp2);
-                            } else {
-                                sortByYAxis(tmp1);
-                                sortByYAxis(tmp2);
-                            }
-
-                            fit1 = new Line2d(base1.begin, base2.begin);
-                            fit2 = new Line2d(base1.end, base2.end);
-
-                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
-                            if (lh != null) {
-                                res.add(lh);
-                                detected = true;
-                            }
-                        }
+//                        if (!detected) {
+//                            Line2d tmp1 = base1.clone();
+//                            Line2d tmp2 = base2.clone();
+//                            // added 2 dummy lines
+//                            if (b1 < 45) {
+//                                sortByXAxis(tmp1);
+//                                sortByXAxis(tmp2);
+//                            } else {
+//                                sortByYAxis(tmp1);
+//                                sortByYAxis(tmp2);
+//                            }
+//
+//                            fit1 = new Line2d(base1.begin, base2.begin);
+//                            fit2 = new Line2d(base1.end, base2.end);
+//
+//                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+//                            if (lh != null) {
+//                                res.add(lh);
+//                                detected = true;
+//                            }
+//                        }
                     }
                 }
             }

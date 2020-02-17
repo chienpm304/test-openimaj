@@ -237,10 +237,10 @@ public class LSD {
 
         /* 'undefined' on the down and right boundaries */
         for (x = 0; x < p; x++)
-            g.data[(n - 1) * p + x] = NOTDEF;
+            g.data[(n - 1) * p + x] = (float) NOTDEF;
 
         for (y = 0; y < n; y++)
-            g.data[p * y + p - 1] = NOTDEF;
+            g.data[p * y + p - 1] = (float) NOTDEF;
 
         /* compute gradient on the remaining pixels */
         for (x = 0; x < p - 1; x++)
@@ -261,17 +261,17 @@ public class LSD {
                 norm2 = gx * gx + gy * gy;
                 norm = Math.sqrt(norm2 / 4.0); /* gradient norm */
 
-                modgrad.data[adr] = norm; /* store gradient norm */
+                modgrad.data[adr] = (float) norm; /* store gradient norm */
 
                 // System.out.println("norm " + norm + " threshold " +
                 // threshold);
 
                 if (norm <= threshold) /* norm too small, gradient no defined */
-                    g.data[adr] = NOTDEF; /* gradient angle not defined */
+                    g.data[adr] = (float) NOTDEF; /* gradient angle not defined */
                 else {
                     // System.out.println("gradient angle --------------");
                     /* gradient angle computation */
-                    g.data[adr] = Math.atan2(gx, -gy);
+                    g.data[adr] = (float) Math.atan2(gx, -gy);
 
                     /* look for the maximum of the gradient */
                     if (norm > max_grad)
@@ -1184,7 +1184,8 @@ public class LSD {
     public LSD(float[] imageData, int width, int height) {
         this.width = width;
         this.height = height;
-        this.imageData = imageData;
+        this.imageData = LsdUtils.gaussian_sampler(imageData, width, height, 1.0, 0.6);
+
     }
 
 //    public LSD(FImage image) {
@@ -1210,7 +1211,7 @@ public class LSD {
             float level = R * 0.2126f + G * 0.7152f + B * 0.0722f;
             arr2[c++] = level;
         }
-        imageData = arr2;
+        this.imageData = arr2;//LsdUtils.gaussian_sampler(arr2, width, height, 1.0, 0.6);
 
     }
 
@@ -1229,7 +1230,7 @@ public class LSD {
             float level = red * 0.2126f + green * 0.7152f + blue* 0.0722f;
             arr2[i] = level;
         }
-        imageData = arr2;
+        this.imageData = LsdUtils.gaussian_sampler(arr2, width, height, 1.0, 0.6);
 
     }
 
