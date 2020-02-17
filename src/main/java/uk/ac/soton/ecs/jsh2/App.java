@@ -180,12 +180,20 @@ public class App {
 
 
         if (!results.isEmpty()) {
-            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
-//            if(results.size()>1)
-//                drawBound(frame, center, results.get(1).lines, RGBColour.BLUE, RGBColour.RED);
+//            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+
+            LineHolder lh = results.get(0);
+            Tetragram tetragram = lh.getBounding(width, height);
+
+            drawBound(frame, center, tetragram.toLineList(), RGBColour.GREEN, RGBColour.GREEN);
+
+            ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+
+            return tetragram;
         }
 
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+
         return null;
     }
 
