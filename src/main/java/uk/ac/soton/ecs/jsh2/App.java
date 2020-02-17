@@ -28,7 +28,7 @@ import static java.lang.Math.PI;
  */
 public class App {
     public static final float THRESHOLD_BIN_INV = 0.07133f;
-    public static final float STANDARD_WIDTH = 720;
+    public static final float STANDARD_WIDTH = 480;
     public static final int H_CHANNEL_ID = 0;
     public static final int S_CHANNEL_ID = 1;
     public static final int V_CHANNEL_ID = 2;
@@ -40,7 +40,7 @@ public class App {
     public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
-    private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
+    private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
 
@@ -59,7 +59,7 @@ public class App {
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
     public static int HOUGHLINE_THRESHOLD = 80;
-    public static int HOUGH_LINE_LENGTH = 150;
+    public static int HOUGH_LINE_LENGTH = 150/4;
 
     private static final int LINE_GAP_REMOVAL = 20;
     private static final int BOUNDING_GAP_REMOVAL = 3;
@@ -134,8 +134,8 @@ public class App {
     }
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(WINDOW_OUT_DIR);
+        File fin = new File(LINUX_DIR_IN);
+        File fout = new File(LINUX_DIR_OUT);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
@@ -148,7 +148,9 @@ public class App {
         scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
-        frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
+        frame = frame
+                .process(new ResizeProcessor(scaleFactor))
+                .process(new FGaussianConvolve(2f));
 
         width = frame.getWidth();
         height = frame.getHeight();
@@ -160,6 +162,11 @@ public class App {
         }
 
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
+
+//        frame = Transforms.RGB_TO_HSV(frame);
+//        frame.processInplace(new FGaussianConvolve(2f));
+//        frame.getBand(0).fill(0);
+//        frame.getBand(2).fill(0);
 
         List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
 
@@ -199,14 +206,7 @@ public class App {
         }
 
         MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-//        hsv.getBand(0).fill(0);
-//        hsv.getBand(2).fill(0);
 
-//
-//        ImageUtilities.write(hsv.getBand(0), new File(fout.getAbsolutePath()+"/h/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(1), new File(fout.getAbsolutePath()+"/s/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(2), new File(fout.getAbsolutePath()+"/v/"+fin.getName()));
-//        if(1==1) return null;
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
 
@@ -337,8 +337,9 @@ public class App {
 
                 lh.rank =
                         base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2
-                                - fits_distance - bases_distance +
-                                fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
+                                - fits_distance
+                                - bases_distance;
+//                                + fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
 
 //                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
 //                                            Math.min(base1_fit2, fit1_base2) +
