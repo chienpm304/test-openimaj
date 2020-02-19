@@ -74,7 +74,7 @@ public class MyUtils {
         return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
     }
 
-    private static Point2d findLinesIntersection(Line2d line1, Line2d line2) {
+    public static Point2d findLinesIntersection(Line2d line1, Line2d line2) {
         Point2d p = new Point2dImpl(0, 0);
         Line2d.IntersectionResult result = MyHelper.findIntersection(line1, line2);
         if (result.type == Line2d.IntersectionType.INTERSECTING) {

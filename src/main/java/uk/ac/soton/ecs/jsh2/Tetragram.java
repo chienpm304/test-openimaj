@@ -1,5 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
+import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 
@@ -108,4 +109,13 @@ public class Tetragram {
         return new Tetragram(tmp);
     }
 
+    public List<Line2d> toLineList() {
+
+        ArrayList<Line2d> lines = new ArrayList<Line2d>();
+        lines.add(new Line2d(tl, tr));
+        lines.add(new Line2d(tr, br));
+        lines.add(new Line2d(br, bl));
+        lines.add(new Line2d(bl, tl));
+        return lines;
+    }
 }

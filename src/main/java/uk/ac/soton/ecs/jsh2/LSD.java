@@ -237,10 +237,10 @@ public class LSD {
 
         /* 'undefined' on the down and right boundaries */
         for (x = 0; x < p; x++)
-            g.data[(n - 1) * p + x] = NOTDEF;
+            g.data[(n - 1) * p + x] = (float) NOTDEF;
 
         for (y = 0; y < n; y++)
-            g.data[p * y + p - 1] = NOTDEF;
+            g.data[p * y + p - 1] = (float) NOTDEF;
 
         /* compute gradient on the remaining pixels */
         for (x = 0; x < p - 1; x++)
@@ -261,17 +261,17 @@ public class LSD {
                 norm2 = gx * gx + gy * gy;
                 norm = Math.sqrt(norm2 / 4.0); /* gradient norm */
 
-                modgrad.data[adr] = norm; /* store gradient norm */
+                modgrad.data[adr] = (float) norm; /* store gradient norm */
 
                 // System.out.println("norm " + norm + " threshold " +
                 // threshold);
 
                 if (norm <= threshold) /* norm too small, gradient no defined */
-                    g.data[adr] = NOTDEF; /* gradient angle not defined */
+                    g.data[adr] = (float) NOTDEF; /* gradient angle not defined */
                 else {
                     // System.out.println("gradient angle --------------");
                     /* gradient angle computation */
-                    g.data[adr] = Math.atan2(gx, -gy);
+                    g.data[adr] = (float) Math.atan2(gx, -gy);
 
                     /* look for the maximum of the gradient */
                     if (norm > max_grad)
@@ -1157,7 +1157,7 @@ public class LSD {
 
     /*----------------------------------------------------------------------------*/
     private int width, height;
-    private double[] imageData;
+    private float[] imageData;
 
     //	private double scale=1.0;
     public List<Line2d> getLines() {
@@ -1172,8 +1172,8 @@ public class LSD {
                         (float) out[7 * i + 1],
                         (float) out[7 * i + 2],
                         (float) out[7 * i + 3]);
-//                if(l.calculateLength() > 150)
-                lines.add(l);
+//                if(l.calculateLength() > 20)
+                    lines.add(l);
             }
         }
 
@@ -1181,45 +1181,67 @@ public class LSD {
     }
 
     /**Constructor */
-    public LSD(double[] imageData, int width, int height) {
+    public LSD(float[] imageData, int width, int height) {
         this.width = width;
         this.height = height;
-        this.imageData = imageData;
+        this.imageData = LsdUtils.gaussian_sampler(imageData, width, height, 1.0, 0.6);
+
     }
 
-    public LSD(FImage image) {
-        this.width = image.width;
-        this.height = image.height;
-        imageData = image.getDoublePixelVector();
-    }
+//    public LSD(FImage image) {
+//        this.width = image.width;
+//        this.height = image.height;
+//        imageData = image.getDoublePixelVector();
+//    }
 
     public LSD(MBFImage image) {
         this.width = image.getWidth();
         this.height = image.getHeight();
-//		imageData = getDoublePixelVector(image);
 
         BufferedImage bf = ImageUtilities.createBufferedImageForDisplay(image);
-        double[] tmp = bf.getData().getPixels(0, 0, width, height, new double[width * height * 3]);
+        float[] tmp = bf.getData().getPixels(0, 0, width, height, new float[width * height * 3]);
 
-        double[] arr2 = new double[width * height];
+        float[] arr2 = new float[width * height];
 
         int c = 0;
         for (int i = 0; i < tmp.length - 3; i += 3) {
-            double B = tmp[i];
-            double G = tmp[i + 1];
-            double R = tmp[i + 2];
-            double level = R * 0.2126 + G * 0.7152 + B * 0.0722;
+            float B = tmp[i];
+            float G = tmp[i + 1];
+            float R = tmp[i + 2];
+            float level = R * 0.2126f + G * 0.7152f + B * 0.0722f;
             arr2[c++] = level;
         }
-        imageData = arr2;
+        this.imageData = arr2;//LsdUtils.gaussian_sampler(arr2, width, height, 1.0, 0.6);
 
     }
 
-    public double[] getDoublePixelVector(MBFImage image) {
+    public LSD(final int[] data, int width, int height) {
+        this.width = width;
+        this.height = height;
+
+        float[] arr2 = new float[width * height];
+
+        for (int i = 0; i < arr2.length; i++) {
+            final int rgb = data[i];
+            final int alpha = ((rgb >> 24) & 0xff);
+            final int red = ((rgb >> 16) & 0xff);
+            final int green = ((rgb >> 8) & 0xff);
+            final int blue = ((rgb) & 0xff);
+            float level = red * 0.2126f + green * 0.7152f + blue* 0.0722f;
+            arr2[i] = level;
+        }
+        this.imageData = LsdUtils.gaussian_sampler(arr2, width, height, 1.0, 0.6);
+
+    }
+
+
+
+
+    public float[] getDoublePixelVector(MBFImage image) {
         int height = image.getHeight();
         int width = image.getWidth();
 
-        double[] arr2 = new double[width * height];
+        float[] arr2 = new float[width * height];
 
         float[][] pixelsB = image.bands.get(0).pixels;
         float[][] pixelsR = image.bands.get(1).pixels;
@@ -1227,10 +1249,10 @@ public class LSD {
 
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                double R = pixelsR[y][x];
-                double G = pixelsG[y][x];
-                double B = pixelsB[y][x];
-                arr2[x + y * width] = R * 0.2126 + G * 0.7152 + B * 0.0722;
+                float R = pixelsR[y][x];
+                float G = pixelsG[y][x];
+                float B = pixelsB[y][x];
+                arr2[x + y * width] = R * 0.2126f + G * 0.7152f + B * 0.0722f;
             }
         }
 

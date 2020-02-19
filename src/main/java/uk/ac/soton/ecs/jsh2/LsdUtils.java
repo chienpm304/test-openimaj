@@ -308,17 +308,17 @@ class LsdUtils {
     }
 
     static class ImageDouble {
-        double[] data;
+        float[] data;
         int width, height;
 
         ImageDouble(int width, int height) {
             this.width = width;
             this.height = height;
 
-            data = new double[width * height];
+            data = new float[width * height];
         }
 
-        ImageDouble(int width, int height, double[] data) {
+        ImageDouble(int width, int height, float[] data) {
             this.width = width;
             this.height = height;
 
@@ -350,7 +350,7 @@ class LsdUtils {
 
             /* check parameters */
             if (dim == 0)
-                error("new_ntuple_list: 'dim' must be positive.");
+                error("new_NTupleList: 'dim' must be positive.");
 
             /* initialize list */
             size = 0;
@@ -364,7 +364,7 @@ class LsdUtils {
     }
 
 
-    static void enlarge_ntuple_list(NTupleList n_tuple) {
+    static void enlarge_NTupleList(NTupleList n_tuple) {
 
         n_tuple.max_size *= 2;
 
@@ -396,7 +396,7 @@ class LsdUtils {
 
         /* if needed, alloc more tuples to 'out' */
         if (out.size == out.max_size)
-            enlarge_ntuple_list(out);
+            enlarge_NTupleList(out);
         if (out.values == null)
             error("add_7tuple: invalid n-tuple input.");
 
@@ -421,6 +421,157 @@ class LsdUtils {
         double dx, dy; /* (dx,dy) is vector oriented as the line segment */
         double prec; /* tolerance angle */
         double p; /* probability of a point with angle within 'prec' */
+    }
+
+    static float[] gaussian_sampler(float[] in, int width, int height, double scale,
+                                  double sigma_scale) {
+        ImageDouble aux, out;
+        NTupleList kernel;
+        int N, M, h, n, x, y, i;
+        int xc, yc, j, double_x_size, double_y_size;
+        double sigma, xx, yy, sum, prec;
+
+        /* check parameters */
+        if (in == null || in == null || width == 0 || height == 0)
+            error("gaussian_sampler: invalid image.");
+        if (scale <= 0.0)
+            error("gaussian_sampler: 'scale' must be positive.");
+        if (sigma_scale <= 0.0)
+            error("gaussian_sampler: 'sigma_scale' must be positive.");
+
+        /* compute new image size and get memory for images */
+        if (width * scale > (double) Integer.MAX_VALUE
+                || height * scale > (double) Integer.MAX_VALUE)
+            error("gaussian_sampler: the output image size exceeds the handled size.");
+        N = (int) Math.ceil(width * scale);
+        M = (int) Math.ceil(height * scale);
+
+        aux = new ImageDouble(N, height);
+        out = new ImageDouble(N, M);
+
+        /* sigma, kernel size and memory for the kernel */
+        sigma = scale < 1.0 ? sigma_scale / scale : sigma_scale;
+        /*
+         * The size of the kernel is selected to guarantee that the the first
+         * discarded term is at least 10^prec times smaller than the central
+         * value. For that, h should be larger than x, with e^(-x^2/2sigma^2) =
+         * 1/10^prec. Then, x = sigma * sqrt( 2 * prec * ln(10) ).
+         */
+        prec = 3.0;
+        h = (int) Math.ceil(sigma * Math.sqrt(2.0 * prec * Math.log(10.0)));
+        n = 1 + 2 * h; /* kernel size */
+        kernel = new NTupleList(n);
+
+        /* auxiliary double image size variables */
+        double_x_size = (int) (2 * width);
+        double_y_size = (int) (2 * height);
+
+        /* First subsampling: x axis */
+        for (x = 0; x < aux.width; x++) {
+            /*
+             * x is the coordinate in the new image. xx is the corresponding
+             * x-value in the original size image. xc is the integer value, the
+             * pixel coordinate of xx.
+             */
+            xx = (double) x / scale;
+            /*
+             * coordinate (0.0,0.0) is in the center of pixel (0,0), so the
+             * pixel with xc=0 get the values of xx from -0.5 to 0.5
+             */
+            xc = (int) Math.floor(xx + 0.5);
+            gaussian_kernel(kernel, sigma, (double) h + xx - (double) xc);
+            /*
+             * the kernel must be computed for each x because the fine offset
+             * xx-xc is different in each case
+             */
+
+            for (y = 0; y < aux.height; y++) {
+                sum = 0.0;
+                for (i = 0; i < kernel.dim; i++) {
+                    j = xc - h + i;
+
+                    /* symmetry boundary condition */
+                    while (j < 0)
+                        j += double_x_size;
+                    while (j >= double_x_size)
+                        j -= double_x_size;
+                    if (j >= (int) width)
+                        j = double_x_size - 1 - j;
+
+                    sum += in[j + y * width] * kernel.values[i];
+                }
+                aux.data[x + y * aux.width] = (float)sum;
+            }
+        }
+
+        /* Second subsampling: y axis */
+        for (y = 0; y < out.height; y++) {
+            /*
+             * y is the coordinate in the new image. yy is the corresponding
+             * x-value in the original size image. yc is the integer value, the
+             * pixel coordinate of xx.
+             */
+            yy = (double) y / scale;
+            /*
+             * coordinate (0.0,0.0) is in the center of pixel (0,0), so the
+             * pixel with yc=0 get the values of yy from -0.5 to 0.5
+             */
+            yc = (int) Math.floor(yy + 0.5);
+            gaussian_kernel(kernel, sigma, (double) h + yy - (double) yc);
+            /*
+             * the kernel must be computed for each y because the fine offset
+             * yy-yc is different in each case
+             */
+
+            for (x = 0; x < out.width; x++) {
+                sum = 0.0;
+                for (i = 0; i < kernel.dim; i++) {
+                    j = yc - h + i;
+
+                    /* symmetry boundary condition */
+                    while (j < 0)
+                        j += double_y_size;
+                    while (j >= double_y_size)
+                        j -= double_y_size;
+                    if (j >= (int) height)
+                        j = double_y_size - 1 - j;
+
+                    sum += aux.data[x + j * aux.width] * kernel.values[i];
+                }
+                out.data[x + y * out.width] = (float)sum;
+            }
+        }
+
+        return out.data;
+    }
+
+    static void gaussian_kernel(NTupleList kernel, double sigma, double mean) {
+        double sum = 0.0;
+        double val;
+        int i;
+
+        /* check parameters */
+        if (kernel == null || kernel.values == null)
+            error("gaussian_kernel: invalid n-tuple 'kernel'.");
+        if (sigma <= 0.0)
+            error("gaussian_kernel: 'sigma' must be positive.");
+
+        /* compute Gaussian kernel */
+        if (kernel.max_size < 1)
+            enlarge_NTupleList(kernel);
+
+        kernel.size = 1;
+        for (i = 0; i < kernel.dim; i++) {
+            val = ((double) i - mean) / sigma;
+            kernel.values[i] = Math.exp(-0.5 * val * val);
+            sum += kernel.values[i];
+        }
+
+        /* normalization */
+        if (sum >= 0.0)
+            for (i = 0; i < kernel.dim; i++)
+                kernel.values[i] /= sum;
+
     }
 
 }
