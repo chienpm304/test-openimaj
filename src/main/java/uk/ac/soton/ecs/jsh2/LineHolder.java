@@ -24,6 +24,10 @@ public class LineHolder implements Comparable<LineHolder>{
         lines.add(line4);
     }
 
+    public LineHolder(){
+        lines = new ArrayList<>();
+    }
+
     @Override
     public int compareTo(LineHolder other) {
         return Double.compare(this.rank, other.rank);

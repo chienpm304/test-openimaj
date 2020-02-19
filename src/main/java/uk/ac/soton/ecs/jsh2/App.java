@@ -4,14 +4,15 @@ import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
-import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.processing.algorithm.GammaCorrection;
+import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
+import org.openrdf.query.algebra.Max;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.util.*;
 import java.util.List;
 
 import static java.lang.Math.PI;
+import static java.lang.Math.min;
 
 /**
  * OpenIMAJ Hello world!
@@ -33,22 +35,30 @@ public class App {
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
     public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
-    private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
-    private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
+    private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
+
+
+    static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
 
 
     public static float scaleFactor = 1.0f;
-    private static int height;
-    private static int width;
+    static int height;
+    static int width;
 
-    public static final float GAUSSIAN_BLUR_SIGMA = 3f;
+    public static final float GAUSSIAN_BLUR_SIGMA = 2f;
 
-    private static final int LINE_GAP_REMOVAL = 20;
+    // min distance of 2 lines calculated by line.distanceToPoint
+    private static final int MERGE_MAX_LINE_DISTANCE = 30;
+
+    // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
+    private static final int MERGE_MAX_LINE_GAP = 50;
+
     private static final int BOUNDING_GAP_REMOVAL = 3;
 
+    //0.05 - 0.1 is ok
     public static float CANNY_LOW_THRESH = 0.01f;
     public static float CANNY_HIGH_THRESH = 0.05f;
     public static float CANNY_SIGMA = 3f;
@@ -58,23 +68,13 @@ public class App {
     public static final double HOUGH_LINE_RHO = 1;
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
-    private static int HOUGH_LINE_MAX_LINE_GAP = 50;
-    private static int HOUGH_LINE_THRESHOLD = 30;
-    private static int HOUGH_MIN_LINE_LENGTH = 80;
+    private static int HOUGH_LINE_MAX_LINE_GAP = 10;
+    private static int HOUGH_LINE_THRESHOLD = 20;
+    private static int HOUGH_MIN_LINE_LENGTH = 20;
+    private static int HOUGH_MAX_NUM_LINE = 1000;
 
-    public static final int HISTOGRAM_NBINS = 64;
-    public static final double GAMMA = 2d;
+    public static final double GAMMA = 2.2d;
 
-
-
-    public static void testIntersect() {
-        Line2d.IntersectionResult res =
-                MyHelper.findIntersection(
-                        new Line2d(6, 5, 8, 5),
-                        new Line2d(1, 5, 3, 5));
-        System.out.println(res.type);
-        System.out.println(res.intersectionPoint);
-    }
 
     public static void main(String[] args) throws IOException {
         testDetectBox();
@@ -85,57 +85,10 @@ public class App {
 //        bruteForceCanny();
     }
 
-    private static void bruteForceCanny() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(LINUX_DIR_OUT);
-        if (fin.exists() && fin.isDirectory())
-            for (final File file : fin.listFiles()) {
-                if (file.isFile()) {
-
-                    MBFImage frame = ImageUtilities.readMBF(file);
-                    scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
-                    scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
-
-                    frame = frame.process(new ResizeProcessor(scaleFactor));
-                    width = frame.getWidth();
-                    height = frame.getHeight();
-
-                    MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
-                    for (CANNY_SIGMA = 3f; CANNY_SIGMA < 6; CANNY_SIGMA += 2f) {
-                        for (CANNY_LOW_THRESH = 0.01f; CANNY_LOW_THRESH < 0.2; CANNY_LOW_THRESH += 0.03) {
-                            for (CANNY_HIGH_THRESH = CANNY_LOW_THRESH + 0.05f; CANNY_HIGH_THRESH < 0.3; CANNY_HIGH_THRESH += 0.03) {
-                                LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA + "_" + CANNY_LOW_THRESH + "_" + CANNY_HIGH_THRESH;
-                                fout = new File(LINUX_DIR_OUT);
-                                if (!fout.exists()) fout.mkdirs();
-                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), file, fout);
-                                ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/" + file.getName()));
-
-                            }
-                        }
-                    }
-                }
-            }
-
-    }
-
-    private static void testAngleGap() {
-        System.out.println(calcAngleDiffInDegree(-89, 89));
-    }
-
-    private static void testMergeLines() {
-        Line2d line1 = new Line2d(1, 1, 1, 6);
-        Line2d line2 = new Line2d(1.2f, 4.8f, 1.2f, 6.5f);
-        System.out.println("before merge: ");
-        System.out.println("keep: " + line1.toString());
-
-        mergeLine(line1, line2);
-        System.out.println("after merge: " + line1.toString());
-    }
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(WINDOW_OUT_DIR);
+        File fin = new File(LINUX_DIR_IN);
+        File fout = new File(LINUX_DIR_OUT);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
@@ -143,94 +96,81 @@ public class App {
             }
     }
 
-    private static Tetragram detectLSD(File fin, File fout) throws IOException {
-
-        MBFImage frame = ImageUtilities.readMBF(fin);
-        scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
-        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
-
-        frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
-
-        width = frame.getWidth();
-        height = frame.getHeight();
-
-        System.out.println("processing: " + fin.getName() + "...");
-        GammaCorrection gc = new GammaCorrection(GAMMA);
-        for (int i = 0; i < frame.numBands(); i++) {
-            frame.getBand(i).processInplace(gc);
-        }
-
-        Point2dImpl center = new Point2dImpl(width / 2, height / 2);
-
-        List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
-
-        removeSimilarAndNoiseLines(lines);
-
-        System.out.println("After merge: " + lines.size());
-
-        drawLines(frame, center, lines, RGBColour.GRAY);
-
-        List<LineHolder> results = findBounds(lines);
+    static FImage applyCannyDetector(FImage grey, File fin, File fout) {
+        CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
+//        FImage grey = frame.getBand(S_CHANNEL_ID);
 
 
-        if (!results.isEmpty())
-            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+        grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
+//        ImageUtilities.write(grey, new File(fout.getAbsolutePath()+"/blur/"+fin.getName()));
 
 
-        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
-        return null;
+        canny.processImage(grey);
+        return grey;
     }
 
     private static Tetragram detectWithCanny(File fin, File fout) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-        scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+        if(frame.getWidth() > frame.getHeight())
+            scaleFactor = STANDARD_WIDTH / (float) frame.getHeight();
+        else
+            scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
-        frame = frame.process(new ResizeProcessor(scaleFactor));
-//                        .process(new FGaussianConvolve(2f, 5f));
-//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
+        if(scaleFactor!=1.0f) {
+            frame.processInplace(new ResizeProcessor(scaleFactor));
+        }
+
+
+
+//        frame.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
+//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/new/"+fin.getName()));
+
+//        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 
         width = frame.getWidth();
         height = frame.getHeight();
 
         System.out.println("processing: " + fin.getName() + "...");
+
         GammaCorrection gc = new GammaCorrection(GAMMA);
         for (int i = 0; i < frame.numBands(); i++) {
             frame.getBand(i).processInplace(gc);
         }
 
-//        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-//        hsv.getBand(0).fill(0);
-//        hsv.getBand(2).fill(0);
-
-//
-//        ImageUtilities.write(hsv.getBand(0), new File(fout.getAbsolutePath()+"/h/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(1), new File(fout.getAbsolutePath()+"/s/"+fin.getName()));
-//        ImageUtilities.write(hsv.getBand(2), new File(fout.getAbsolutePath()+"/v/"+fin.getName()));
-//        if(1==1) return null;
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
+        FImage edges = applyCannyDetector(frame.flattenMax(), fin, fout);
 
-        FImage edges = applyCannyDetector(frame.flatten(), fin, fout);
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
+
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
+        MBFImage tmp = frame.clone();
+        drawLines(tmp,center, lines, RGBColour.GREEN);
+        ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
+
+
         System.out.println("Before merge: " + lines.size());
-        removeSimilarAndNoiseLines(lines);
+
+        for(int lineGap = MERGE_MAX_LINE_GAP; lineGap < Math.max(width, height); lineGap+=50)
+            removeNoiseLines(lines, lineGap);
+
 
         System.out.println("After merge: " + lines.size());
 
-        drawLines(frame, center, lines, RGBColour.GRAY);
+        drawLines(frame, center, lines, RGBColour.GREEN);
 
-        List<LineHolder> results = findBounds(lines);
+//        List<LineHolder> results = findBounds(lines);
 
 
 //        drawLines(frame,center, lines, RGBColour.BLUE);
-
-        if (!results.isEmpty())
-            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+//
+//        if (!results.isEmpty())
+//            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
 
 
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
@@ -238,7 +178,7 @@ public class App {
     }
 
 
-    private static List<LineHolder> findBounds(List<Line2d> lines) {
+    static List<LineHolder> findBounds(List<Line2d> lines) {
 
         ArrayList<LineHolder> res = new ArrayList<>();
 
@@ -353,24 +293,6 @@ public class App {
         return null;
     }
 
-    private static double getAngleInDegree(Line2d line) {
-        return line.calculateHorizontalAngle() * 180 / PI;
-    }
-
-    private static double calcAngleDiffInDegree(double a1, double a2) {
-        double gap = 0;
-        if (a1 * a2 >= 0)
-            return Math.abs(a1 - a2);
-
-        if (a1 < 0) gap = a2 - a1;
-        else gap = a1 - a2;
-
-        if (gap >= 90)
-            gap = 180 - gap;
-
-        return gap;
-    }
-
     private static List<Line2d> getLinesUsingHoughTransformP(FImage image) {
         List<Point2d> points = new ArrayList<>();
         for (int i = 0; i < image.width; i++)
@@ -386,32 +308,126 @@ public class App {
                 HOUGH_LINE_THETA,
                 HOUGH_LINE_THRESHOLD,
                 HOUGH_LINE_MAX_LINE_GAP,
-                HOUGH_MIN_LINE_LENGTH,
-                20);
+                HOUGH_MIN_LINE_LENGTH, 
+                HOUGH_MAX_NUM_LINE);
         return ht.getLines();
     }
 
-    private static List<Line2d> getLinesUsingLineSegmentDetector(MBFImage image) {
-        LSD lsd = new LSD(image);
-        return lsd.getLines();
+
+    static void removeNoiseLines(List<Line2d> lines, int maxLineGap) {
+
+//        removeLineWithShorterThanTheshold(lines, 40);
+
+        removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
+
+        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
+
+//        merge
+        Line2d l1, l2;
+
+        List<Line2d> tmpLines = new ArrayList<>();
+
+        for (int i = 0; i < lines.size() - 1; i++) {
+            tmpLines.clear();
+            l1 = lines.get(i);
+            tmpLines.add(l1);
+
+            for (int j = i + 1; j < lines.size(); j++) {
+                l2 = lines.get(j);
+
+                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, MERGE_MAX_LINE_DISTANCE, maxLineGap)) {
+                    l2 = lines.remove(j);
+                    tmpLines.add(l2);
+                    j--;
+                }
+            }
+            if(tmpLines.size() > 1){
+                System.out.println("merging "+tmpLines.size());
+                Line2d newLine = mergeLines(tmpLines);
+                lines.set(i, newLine);
+            }
+
+        }
+
+        removeLineWithShorterThanThreshold(lines, 80);
+
     }
 
-    private static void removeSimilarAndNoiseLines(List<Line2d> lines) {
-        for (int i = 0; i < lines.size(); i++) {
-            Line2d l = lines.get(i);
+    private static Line2d mergeLines(List<Line2d> lines) {
 
-            if (l.begin.getX() < BOUNDING_GAP_REMOVAL && l.end.getX() < BOUNDING_GAP_REMOVAL //LEFT
+        Line2d keep, remove;
+        keep = lines.get(0).clone(); // longest
 
-                    || l.begin.getY() < BOUNDING_GAP_REMOVAL && l.end.getY() < BOUNDING_GAP_REMOVAL //TOP
-
-                    || l.begin.getX() > width - BOUNDING_GAP_REMOVAL && l.end.getX() > width - BOUNDING_GAP_REMOVAL // RIGHT
-
-                    || l.begin.getY() > height - BOUNDING_GAP_REMOVAL && l.end.getY() > height - BOUNDING_GAP_REMOVAL) {
-
-                lines.remove(i);
-                i--;
-            }
+        for(int i = 1; i < lines.size(); i++){
+            remove = lines.get(i);
+            mergeLine(keep, remove);
+            lines.set(0, keep);
         }
+        return keep;
+
+//        double hAngle = calcAngleDiffInDegree(getAngleInDegree(lines.get(0)), 0);// keep.calculateHorizontalAngle();
+
+//        if (hAngle < 45) {//x-axis
+//            for(Line2d l: lines){
+//                sortByXAxis(l);
+//            }
+//            // sort by X increase
+//            Collections.sort(lines, (o1, o2) -> Float.compare(o1.begin.getX(), o2.begin.getX()));
+//        }else{
+//            for(Line2d l: lines)
+//                sortByYAxis(l);
+//            // sort by X increase
+//            Collections.sort(lines, (o1, o2) -> Float.compare(o1.begin.getY(), o2.begin.getY()));
+//        }
+//
+//        // remove noise lines in list
+//        for(int j = lines.size()-1; j > 0; j--){
+//            if(calculateLineGap(lines.get(j), lines.get(j-1)) > RM_CONST){
+//                lines.remove(j);
+////                j++
+//            }
+//        }
+//        return null;
+    }
+
+
+
+    private static boolean isTheSameLineGroup(List<Line2d> lines, Line2d line, int lineDistanceThreshold, int lineGapThreshold) {
+
+        for(Line2d l: lines){
+            if(!isOnTheSameLine(l, line, lineDistanceThreshold))
+                return false;
+            if(calculateLineGap(l, line) > lineGapThreshold)
+                return false;
+        }
+        return true;
+    }
+
+    private static float calculateLineGap(Line2d l1, Line2d l2) {
+        float d1 = distance(l1.begin, l2.begin);
+        float d2 = distance(l1.begin, l2.end);
+        float d3 = distance(l1.end, l2.begin);
+        float d4 = distance(l1.end, l2.end);
+        d1 = Math.min(d1, d2);
+        d3 = Math.min(d3, d4);
+        return min(d1, d3);
+    }
+
+    private static boolean isOnTheSameLine(Line2d l1, Line2d l2, int threshold) {
+        return l1.isOnLine(l2.begin, threshold)
+                && l1.isOnLine(l2.end, threshold)
+                && l2.isOnLine(l1.begin, threshold)
+                && l2.isOnLine(l1.end, threshold);
+    }
+
+
+    static void removeSimilarAndNoiseLines(List<Line2d> lines) {
+
+//        removeLineWithShorterThanTheshold(lines, 40);
+
+        removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
+
+//        merge
 
         Line2d l1, l2;
         Line2d kpLine, rmLine;
@@ -420,10 +436,10 @@ public class App {
             for (int j = i + 1; j < lines.size(); j++) {
                 l2 = lines.get(j);
                 if (l1 != l2
-                        && l2.distanceToLine(l1.begin) < LINE_GAP_REMOVAL
-                        && l2.distanceToLine(l1.end) < LINE_GAP_REMOVAL
-                        && l1.distanceToLine(l2.begin) < LINE_GAP_REMOVAL
-                        && l1.distanceToLine(l2.end) < LINE_GAP_REMOVAL
+                        && l2.distanceToLine(l1.begin) < MERGE_MAX_LINE_DISTANCE
+                        && l2.distanceToLine(l1.end) < MERGE_MAX_LINE_DISTANCE
+                        && l1.distanceToLine(l2.begin) < MERGE_MAX_LINE_DISTANCE
+                        && l1.distanceToLine(l2.end) < MERGE_MAX_LINE_DISTANCE
                 ) {
                     if (l1.calculateLength() < l2.calculateLength()) { // keep line i
                         Collections.swap(lines, i, j);
@@ -444,10 +460,22 @@ public class App {
                 }
             }
         }
+
+        removeLineWithShorterThanThreshold(lines, 80);
+
+    }
+
+    private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
 
-            if (l.calculateLength() < HOUGH_MIN_LINE_LENGTH) {
+            if (l.begin.getX() < threshold && l.end.getX() < threshold //LEFT
+
+                    || l.begin.getY() < threshold && l.end.getY() < threshold //TOP
+
+                    || l.begin.getX() > width - threshold && l.end.getX() > width - threshold // RIGHT
+
+                    || l.begin.getY() > height - threshold && l.end.getY() > height - threshold) {
 
                 lines.remove(i);
                 i--;
@@ -455,125 +483,115 @@ public class App {
         }
     }
 
-    private static void mergeLine(Line2d keep, Line2d remove) {
+    private static void removeLineWithShorterThanThreshold(List<Line2d> lines, int threshold) {
+        //remove
+        for (int i = 0; i < lines.size(); i++) {
+            Line2d l = lines.get(i);
 
+            if (l.calculateLength() < threshold) {
+
+                lines.remove(i);
+                i--;
+            }
+        }
+    }
+
+    static void mergeLine(Line2d keep, Line2d remove) {
         //determinate the merge axis
-        double hAngle = keep.calculateHorizontalAngle();
-//        System.out.println("hAngle = "+hAngle);
+        double hAngle = calcAngleDiffInDegree(getAngleInDegree(keep), 0);// keep.calculateHorizontalAngle();
 
-        // Given the equation for a line as ax - by + c = 0
+        Point2d expandedPoint;
+        if (hAngle < 45) {//x-axis
+            mergeX(keep, remove);
+
+        } else { // y-axis
+            mergeY(keep, remove);
+        }
+    }
+
+    private static void mergeY(Line2d keep, Line2d remove) {
+        // begin.x < end.x
+        sortByYAxis(keep);
+        sortByYAxis(remove);
         float a = keep.end.getY() - keep.begin.getY();
         float b = keep.end.getX() - keep.begin.getX();
         float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
 
         float newX, newY;
 
-        Point2d expandedPoint;
-        if (hAngle < PI / 4) {//x-axis
+        if (remove.begin.getY() < keep.begin.getY()) {
+            // expand top
+            newY = remove.begin.getY();
+            newX = (b * newY - c) / (a);
 
-            // begin.x < end.x
-            sortByXAxis(keep);
-            sortByXAxis(remove);
-
-            if (remove.begin.getX() < keep.begin.getX()) {
-                // expand left
-                newX = remove.begin.getX();
+            if (newX < 0) {
+                newX = 0;
                 newY = (a * newX + c) / (b);
-                if (newY < 0) {
-                    newY = 0;
-                    newX = (b * newY - c) / (a);
-                } else if (newY > height) {
-                    newY = height - 1;
-                    newX = (b * newY - c) / (a);
-                }
-                keep.begin.setX(newX);
-                keep.begin.setY(newY);
-            } else if (remove.end.getX() > keep.end.getX()) {
-                // expand right
-                newX = remove.end.getX();
+            } else if (newX > width) {
+                newX = width - 1;
+                newY = (b * newY - c) / (a);
+            }
+
+            keep.begin.setX(newX);
+            keep.begin.setY(newY);
+        } else if (remove.end.getY() > keep.end.getY()) {
+            // expand bottom
+            newY = remove.end.getY();
+            newX = (b * newY - c) / (a);
+
+            if (newX < 0) {
+                newX = 0;
                 newY = (a * newX + c) / (b);
-
-                if (newY < 0) {
-                    newY = 0;
-                    newX = (b * newY - c) / (a);
-                } else if (newY > height) {
-                    newY = height - 1;
-                    newX = (b * newY - c) / (a);
-                }
-
-                keep.end.setX(newX);
-                keep.end.setY(newY);
-
-
+            } else if (newX > width) {
+                newX = width - 1;
+                newY = (b * newY - c) / (a);
             }
-        } else { // y-axis
-            // begin.x < end.x
-            sortByYAxis(keep);
-            sortByYAxis(remove);
 
-            if (remove.begin.getY() < keep.begin.getY()) {
-                // expand top
-                newY = remove.begin.getY();
+            keep.end.setX(newX);
+            keep.end.setY(newY);
+        }
+    }
+
+    private static void mergeX(Line2d keep, Line2d remove) {
+        sortByXAxis(keep);
+        sortByXAxis(remove);
+        float a = keep.end.getY() - keep.begin.getY();
+        float b = keep.end.getX() - keep.begin.getX();
+        float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
+
+        float newX, newY;
+
+        if (remove.begin.getX() < keep.begin.getX()) {
+            // expand left
+            newX = remove.begin.getX();
+            newY = (a * newX + c) / (b);
+
+            if (newY < 0) {
+                newY = 0;
                 newX = (b * newY - c) / (a);
-
-                if (newX < 0) {
-                    newX = 0;
-                    newY = (a * newX + c) / (b);
-                } else if (newX > width) {
-                    newX = width - 1;
-                    newY = (b * newY - c) / (a);
-                }
-
-                keep.begin.setX(newX);
-                keep.begin.setY(newY);
-            } else if (remove.end.getY() > keep.end.getY()) {
-                // expand bottom
-                newY = remove.end.getY();
+            } else if (newY > height) {
+                newY = height - 1;
                 newX = (b * newY - c) / (a);
-
-                if (newX < 0) {
-                    newX = 0;
-                    newY = (a * newX + c) / (b);
-                } else if (newX > width) {
-                    newX = width - 1;
-                    newY = (b * newY - c) / (a);
-                }
-
-                keep.end.setX(newX);
-                keep.end.setY(newY);
             }
+
+            keep.begin.setX(newX);
+            keep.begin.setY(newY);
+        } else if (remove.end.getX() > keep.end.getX()) {
+            // expand right
+            newX = remove.end.getX();
+            newY = (a * newX + c) / (b);
+
+            if (newY < 0) {
+                newY = 0;
+                newX = (b * newY - c) / (a);
+            } else if (newY > height) {
+                newY = height - 1;
+                newX = (b * newY - c) / (a);
+            }
+
+            keep.end.setX(newX);
+            keep.end.setY(newY);
         }
-//        return keep;
-    }
-
-    private static void sortByYAxis(Line2d keep) {
-        if (keep.begin.getY() > keep.end.getY()) {
-            Point2d tmp = keep.begin;
-            keep.setBeginPoint(keep.end);
-            keep.setEndPoint(tmp);
-        }
-    }
-
-    private static void sortByXAxis(Line2d keep) {
-        if (keep.begin.getX() > keep.end.getX()) {
-            Point2d tmp = keep.begin;
-            keep.setBeginPoint(keep.end);
-            keep.setEndPoint(tmp);
-        }
-    }
-
-
-    private static FImage applyCannyDetector(FImage grey, File fin, File fout) throws IOException {
-        CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
-//        FImage grey = frame.getBand(S_CHANNEL_ID);
-
-
-//        grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
-//        ImageUtilities.write(grey, new File(fout.getAbsolutePath()+"/blur/"+fin.getName()));
-
-
-        canny.processImage(grey);
-        return grey;
     }
 
 
@@ -583,14 +601,14 @@ public class App {
         return RGBColour.RGB(rnd.nextInt(256), rnd.nextInt(256), rnd.nextInt(256));
     }
 
-    static double distance(Point2d p1, Point2d p2) {
+    static float distance(Point2d p1, Point2d p2) {
 
         float x1 = p1.getX(), x2 = p2.getX(), y1 = p1.getY(), y2 = p2.getY();
 
-        return Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
+        return (float) Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
     }
 
-    private static void drawBound(MBFImage frame, Point2d center, List<Line2d> lines, Float[] baseColor, Float[] fitColor) {
+    static void drawBound(MBFImage frame, Point2d center, List<Line2d> lines, Float[] baseColor, Float[] fitColor) {
         Float[] lineColor;
         for (Line2d line : lines) {
             if (lines.indexOf(line) % 2 == 0)
@@ -604,24 +622,63 @@ public class App {
         }
     }
 
-    private static void drawLines(MBFImage frame, Point2d center, List<Line2d> lines, Float[] lineColor) {
+    protected static void drawLines(MBFImage frame, Point2d center, List<Line2d> lines, Float[] lineColor) {
         System.out.println(lines.size() + " lines");
+
+        Float[] orgColor = lineColor;
+
+        for (Line2d line : lines) {
+            frame.drawLine(line, 2, lineColor);
+            frame.drawPoint(line.begin, RGBColour.RED, 3);
+            frame.drawPoint(line.end, RGBColour.YELLOW, 4);
+            frame.drawText(
+                    Math.round(calcAngleDiffInDegree(getAngleInDegree(line), 0)) + "*",
+                    (int) line.calculateCentroid().getX(),
+                    (int) line.calculateCentroid().getY(),
+                    HersheyFont.ROMAN_DUPLEX,
+                    20, RGBColour.BLUE);
+        }
+
         frame.drawText(lines.size() + "", (int) center.getX(),
                 (int) center.getY(),
                 HersheyFont.ROMAN_DUPLEX,
                 40,
                 RGBColour.RED);
 
-        Float[] orgColor = lineColor;
+    }
+    private static double getAngleInDegree(Line2d line) {
+        return line.calculateHorizontalAngle() * 180 / PI;
+    }
 
-        for (Line2d line : lines) {
-            frame.drawLine(line, 2, lineColor);
-            frame.drawPoint(line.begin, RGBColour.RED, 5);
-            frame.drawPoint(line.end, RGBColour.YELLOW, 5);
-            frame.drawText(Math.round(line.calculateHorizontalAngle() * 180 / PI) + "*", (int) line.calculateCentroid().getX(),
-                    (int) line.calculateCentroid().getY(),
-                    HersheyFont.ROMAN_DUPLEX,
-                    20, RGBColour.BLUE);
+    static double calcAngleDiffInDegree(double a1, double a2) {
+        double gap = 0;
+        if (a1 * a2 >= 0)
+            return Math.abs(a1 - a2);
+
+        if (a1 < 0) gap = a2 - a1;
+        else gap = a1 - a2;
+
+        if (gap >= 90)
+            gap = 180 - gap;
+
+        return gap;
+    }
+
+    private static void sortByYAxis(Line2d line) {
+        if (line.begin.getY() > line.end.getY()) {
+            Point2d tmp = line.begin;
+            line.setBeginPoint(line.end);
+            line.setEndPoint(tmp);
         }
     }
+
+    private static void sortByXAxis(Line2d line) {
+        if (line.begin.getX() > line.end.getX()) {
+            Point2d tmp = line.begin;
+            line.setBeginPoint(line.end);
+            line.setEndPoint(tmp);
+        }
+    }
+
+
 }
