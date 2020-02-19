@@ -37,6 +37,7 @@ public class App {
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
 
 
+
     static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
     public static final int THRESHOLD_STEP = 50;
@@ -47,13 +48,15 @@ public class App {
     static int height;
     static int width;
 
+    public static final int MIN_ANGLE = 4;
+
     public static final float GAUSSIAN_BLUR_SIGMA = 2f;
 
     // min distance of 2 lines calculated by line.distanceToPoint
     private static final int MERGE_MAX_LINE_DISTANCE = 20;
 
     // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    private static final int MERGE_MAX_LINE_GAP = 80;
+    private static final int MERGE_MAX_LINE_GAP = 100;
 
     private static final int BOUNDING_GAP_REMOVAL = 3;
 
@@ -445,7 +448,7 @@ public class App {
                 && l1.isOnLine(l2.end, threshold)
                 && l2.isOnLine(l1.begin, threshold)
                 && l2.isOnLine(l1.end, threshold)
-                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= 5;
+                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= MIN_ANGLE;
     }
 
 
