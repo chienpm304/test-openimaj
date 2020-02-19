@@ -1,5 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
+import org.apache.lucene.search.grouping.CollectedSearchGroup;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -12,15 +13,13 @@ import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
-import org.openrdf.query.algebra.Max;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-import static java.lang.Math.PI;
-import static java.lang.Math.min;
+import static java.lang.Math.*;
 
 /**
  * OpenIMAJ Hello world!
@@ -32,7 +31,7 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
     public static final int V_CHANNEL_ID = 2;
 
-    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
+    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/new";
     public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
@@ -51,10 +50,10 @@ public class App {
     public static final float GAUSSIAN_BLUR_SIGMA = 2f;
 
     // min distance of 2 lines calculated by line.distanceToPoint
-    private static final int MERGE_MAX_LINE_DISTANCE = 30;
+    private static final int MERGE_MAX_LINE_DISTANCE = 20;
 
     // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    private static final int MERGE_MAX_LINE_GAP = 50;
+    private static final int MERGE_MAX_LINE_GAP = 80;
 
     private static final int BOUNDING_GAP_REMOVAL = 3;
 
@@ -87,8 +86,8 @@ public class App {
 
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(LINUX_DIR_IN);
-        File fout = new File(LINUX_DIR_OUT);
+        File fin = new File(WINDOW_DIR);
+        File fout = new File(WINDOW_OUT_DIR);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
@@ -123,13 +122,6 @@ public class App {
             frame.processInplace(new ResizeProcessor(scaleFactor));
         }
 
-
-
-//        frame.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
-//        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/new/"+fin.getName()));
-
-//        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
-
         width = frame.getWidth();
         height = frame.getHeight();
 
@@ -156,9 +148,7 @@ public class App {
 
         System.out.println("Before merge: " + lines.size());
 
-        for(int lineGap = MERGE_MAX_LINE_GAP; lineGap < Math.max(width, height); lineGap+=50)
-            removeNoiseLines(lines, lineGap);
-
+        removeNoiseLines(lines, MERGE_MAX_LINE_DISTANCE,  MERGE_MAX_LINE_GAP);
 
         System.out.println("After merge: " + lines.size());
 
@@ -314,27 +304,37 @@ public class App {
     }
 
 
-    static void removeNoiseLines(List<Line2d> lines, int maxLineGap) {
+    static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
 
 
         removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
 
-        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
+//        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
 
-//        merge
+        removeNoiseX(lines, maxLineDistance, maxLineGap);
+        removeNoiseY(lines, maxLineDistance, maxLineGap);
+
+        removeLineWithShorterThanThreshold(lines, 80);
+    }
+
+    private static void removeNoiseX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for(Line2d l: lines) sortByXAxis(l);
+        lines.sort(Comparator.comparingDouble(Line2d::minX));
+
         Line2d l1, l2;
-
         List<Line2d> tmpLines = new ArrayList<>();
 
         for (int i = 0; i < lines.size() - 1; i++) {
             tmpLines.clear();
             l1 = lines.get(i);
+            if(getHorizontalAngleInDegree(l1) >= 45)
+                continue;
             tmpLines.add(l1);
 
             for (int j = i + 1; j < lines.size(); j++) {
                 l2 = lines.get(j);
 
-                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, MERGE_MAX_LINE_DISTANCE, maxLineGap)) {
+                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
                     l2 = lines.remove(j);
                     tmpLines.add(l2);
                     j--;
@@ -345,61 +345,89 @@ public class App {
                 Line2d newLine = mergeLines(tmpLines);
                 lines.set(i, newLine);
             }
-
         }
+    }
 
-        removeLineWithShorterThanThreshold(lines, 80);
+    private static void removeNoiseY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for(Line2d l: lines) sortByYAxis(l);
+        lines.sort(Comparator.comparingDouble(Line2d::minY));
 
+        Line2d l1, l2;
+        List<Line2d> tmpLines = new ArrayList<>();
+
+        for (int i = 0; i < lines.size() - 1; i++) {
+            tmpLines.clear();
+            l1 = lines.get(i);
+            if(getHorizontalAngleInDegree(l1) < 45)
+                continue;
+            tmpLines.add(l1);
+
+            for (int j = i + 1; j < lines.size(); j++) {
+                l2 = lines.get(j);
+
+                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
+                    l2 = lines.remove(j);
+                    tmpLines.add(l2);
+                    j--;
+                }
+            }
+            if(tmpLines.size() > 1){
+                System.out.println("merging "+tmpLines.size());
+                Line2d newLine = mergeLines(tmpLines);
+                lines.set(i, newLine);
+            }
+        }
+    }
+
+    private static double getHorizontalAngleInDegree(Line2d l1) {
+        return calcAngleDiffInDegree(getAngleInDegree(l1), 0);
     }
 
     private static Line2d mergeLines(List<Line2d> lines) {
-
         Line2d keep, remove;
-        keep = lines.get(0).clone(); // longest
+        //find the candidate line in lines
+        int idx = findClosestLineByAverageAngle(lines);
 
-        for(int i = 1; i < lines.size(); i++){
+        keep = lines.remove(idx);
+
+        for(int i = 0; i < lines.size(); i++){
             remove = lines.get(i);
             mergeLine(keep, remove);
-            lines.set(0, keep);
         }
         return keep;
+    }
 
-//        double hAngle = calcAngleDiffInDegree(getAngleInDegree(lines.get(0)), 0);// keep.calculateHorizontalAngle();
+    private static int findClosestLineByAverageAngle(List<Line2d> lines) {
+        double avgAngle = 0;
+        for(Line2d l: lines)
+            avgAngle+= getHorizontalAngleInDegree(l);
 
-//        if (hAngle < 45) {//x-axis
-//            for(Line2d l: lines){
-//                sortByXAxis(l);
-//            }
-//            // sort by X increase
-//            Collections.sort(lines, (o1, o2) -> Float.compare(o1.begin.getX(), o2.begin.getX()));
-//        }else{
-//            for(Line2d l: lines)
-//                sortByYAxis(l);
-//            // sort by X increase
-//            Collections.sort(lines, (o1, o2) -> Float.compare(o1.begin.getY(), o2.begin.getY()));
-//        }
-//
-//        // remove noise lines in list
-//        for(int j = lines.size()-1; j > 0; j--){
-//            if(calculateLineGap(lines.get(j), lines.get(j-1)) > RM_CONST){
-//                lines.remove(j);
-////                j++
-//            }
-//        }
-//        return null;
+        avgAngle = avgAngle/lines.size();
+
+        int idx = 0;
+
+        double minAngleGap = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(idx)));
+
+        for(int i = 1; i < lines.size(); i++){
+            double t = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(i)));
+            if(t < minAngleGap){
+                minAngleGap = t;
+                idx = i;
+            }
+        }
+        return idx;
     }
 
 
-
     private static boolean isTheSameLineGroup(List<Line2d> lines, Line2d line, int lineDistanceThreshold, int lineGapThreshold) {
-
+        boolean gap = false;
         for(Line2d l: lines){
             if(!isOnTheSameLine(l, line, lineDistanceThreshold))
                 return false;
-            if(calculateLineGap(l, line) > lineGapThreshold)
-                return false;
+            if(calculateLineGap(l, line) < lineGapThreshold)
+                gap = true;
         }
-        return true;
+        return gap;
     }
 
     private static float calculateLineGap(Line2d l1, Line2d l2) {
@@ -498,7 +526,7 @@ public class App {
 
     static void mergeLine(Line2d keep, Line2d remove) {
         //determinate the merge axis
-        double hAngle = calcAngleDiffInDegree(getAngleInDegree(keep), 0);// keep.calculateHorizontalAngle();
+        double hAngle = getHorizontalAngleInDegree(keep);
 
         Point2d expandedPoint;
         if (hAngle < 45) {//x-axis
@@ -632,7 +660,7 @@ public class App {
             frame.drawPoint(line.begin, RGBColour.RED, 3);
             frame.drawPoint(line.end, RGBColour.YELLOW, 4);
             frame.drawText(
-                    Math.round(calcAngleDiffInDegree(getAngleInDegree(line), 0)) + "*",
+                    Math.round(getHorizontalAngleInDegree(line)) + "*",
                     (int) line.calculateCentroid().getX(),
                     (int) line.calculateCentroid().getY(),
                     HersheyFont.ROMAN_DUPLEX,
