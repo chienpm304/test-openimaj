@@ -6,7 +6,6 @@ import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
 import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.processing.algorithm.GammaCorrection;
-import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.image.typography.hershey.HersheyFont;
@@ -14,8 +13,6 @@ import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -33,14 +30,12 @@ public class App {
     public static final int S_CHANNEL_ID = 1;
     public static final int V_CHANNEL_ID = 2;
 
-    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/s";
-    public static final double GAMMA = 2d;
-
-
-    public static String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
+    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/in";
+    public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/in";
     private static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java";
+
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
 
@@ -51,20 +46,25 @@ public class App {
 
     public static final float GAUSSIAN_BLUR_SIGMA = 3f;
 
+    private static final int LINE_GAP_REMOVAL = 20;
+    private static final int BOUNDING_GAP_REMOVAL = 3;
+
     public static float CANNY_LOW_THRESH = 0.01f;
     public static float CANNY_HIGH_THRESH = 0.05f;
-    public static float CANNY_SIGMA = 5f;
+    public static float CANNY_SIGMA = 3f;
+
+
 
     public static final double HOUGH_LINE_RHO = 1;
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
-    public static int HOUGHLINE_THRESHOLD = 80;
-    public static int HOUGH_LINE_LENGTH = 150;
-
-    private static final int LINE_GAP_REMOVAL = 20;
-    private static final int BOUNDING_GAP_REMOVAL = 3;
+    private static int HOUGH_LINE_MAX_LINE_GAP = 50;
+    private static int HOUGH_LINE_THRESHOLD = 30;
+    private static int HOUGH_MIN_LINE_LENGTH = 80;
 
     public static final int HISTOGRAM_NBINS = 64;
+    public static final double GAMMA = 2d;
+
 
 
     public static void testIntersect() {
@@ -139,9 +139,10 @@ public class App {
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
-                    detectLSD(file, fout);
+                    detectWithCanny(file, fout);
             }
     }
+
     private static Tetragram detectLSD(File fin, File fout) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
@@ -187,6 +188,7 @@ public class App {
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
         frame = frame.process(new ResizeProcessor(scaleFactor));
+//                        .process(new FGaussianConvolve(2f, 5f));
 //        ImageUtilities.write(frame, new File(fout.getAbsolutePath()+"/gc/"+fin.getName()));
 
         width = frame.getWidth();
@@ -198,7 +200,7 @@ public class App {
             frame.getBand(i).processInplace(gc);
         }
 
-        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
+//        MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 //        hsv.getBand(0).fill(0);
 //        hsv.getBand(2).fill(0);
 
@@ -210,12 +212,12 @@ public class App {
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
 
-        FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), fin, fout);
+        FImage edges = applyCannyDetector(frame.flatten(), fin, fout);
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
-        System.out.println("Before merge: "+lines.size());
+        System.out.println("Before merge: " + lines.size());
         removeSimilarAndNoiseLines(lines);
 
         System.out.println("After merge: " + lines.size());
@@ -376,16 +378,25 @@ public class App {
                 if (image.getPixel(i, j) > 0.5f)
                     points.add(new Point2dImpl(i, j));
             }
-        HoughLinesP ht = new HoughLinesP(points, width, height, HOUGH_LINE_RHO, HOUGH_LINE_THETA, HOUGHLINE_THRESHOLD, HOUGH_LINE_LENGTH, 200);
+        HoughLinesP ht = new HoughLinesP(
+                points,
+                width,
+                height,
+                HOUGH_LINE_RHO,
+                HOUGH_LINE_THETA,
+                HOUGH_LINE_THRESHOLD,
+                HOUGH_LINE_MAX_LINE_GAP,
+                HOUGH_MIN_LINE_LENGTH,
+                20);
         return ht.getLines();
     }
 
-    private static List<Line2d> getLinesUsingLineSegmentDetector(MBFImage image){
+    private static List<Line2d> getLinesUsingLineSegmentDetector(MBFImage image) {
         LSD lsd = new LSD(image);
         return lsd.getLines();
     }
 
-    private static List<Line2d> removeSimilarAndNoiseLines(List<Line2d> lines) {
+    private static void removeSimilarAndNoiseLines(List<Line2d> lines) {
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
 
@@ -436,13 +447,12 @@ public class App {
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
 
-            if (l.calculateLength() < HOUGH_LINE_LENGTH) {
+            if (l.calculateLength() < HOUGH_MIN_LINE_LENGTH) {
 
                 lines.remove(i);
                 i--;
             }
         }
-        return lines;
     }
 
     private static void mergeLine(Line2d keep, Line2d remove) {
@@ -551,9 +561,6 @@ public class App {
             keep.setEndPoint(tmp);
         }
     }
-
-
-
 
 
     private static FImage applyCannyDetector(FImage grey, File fin, File fout) throws IOException {
