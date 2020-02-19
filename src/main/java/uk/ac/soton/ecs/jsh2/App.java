@@ -316,7 +316,6 @@ public class App {
 
     static void removeNoiseLines(List<Line2d> lines, int maxLineGap) {
 
-//        removeLineWithShorterThanTheshold(lines, 40);
 
         removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
 
@@ -417,7 +416,8 @@ public class App {
         return l1.isOnLine(l2.begin, threshold)
                 && l1.isOnLine(l2.end, threshold)
                 && l2.isOnLine(l1.begin, threshold)
-                && l2.isOnLine(l1.end, threshold);
+                && l2.isOnLine(l1.end, threshold)
+                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= 5;
     }
 
 
