@@ -17,6 +17,9 @@ import static uk.ac.soton.ecs.jsh2.App.*;
 
 public class OldAlgorithm {
 
+    public static final int THRESHOLD_STEP = 50;
+    public static final float NEW_THRESHOLD = 0.1f;
+
 
     private static Tetragram findBoundingBoxByContour(MBFImage frame, FImage grey) {
         Contour contour = SuzukiContourProcessor.findContours(grey);

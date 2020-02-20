@@ -50,7 +50,7 @@ public class TestFunc {
                                 LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA + "_" + CANNY_LOW_THRESH + "_" + CANNY_HIGH_THRESH;
                                 fout = new File(LINUX_DIR_OUT);
                                 if (!fout.exists()) fout.mkdirs();
-                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID), file, fout);
+                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID));
                                 ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/" + file.getName()));
 
                             }

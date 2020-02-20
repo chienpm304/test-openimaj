@@ -1,6 +1,5 @@
 package uk.ac.soton.ecs.jsh2;
 
-import org.apache.lucene.search.grouping.CollectedSearchGroup;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -25,38 +24,28 @@ import static java.lang.Math.*;
  * OpenIMAJ Hello world!
  */
 public class App {
-    public static final float THRESHOLD_BIN_INV = 0.07133f;
     public static final float STANDARD_WIDTH = 720;
-    public static final int H_CHANNEL_ID = 0;
     public static final int S_CHANNEL_ID = 1;
-    public static final int V_CHANNEL_ID = 2;
 
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/new";
     public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
-
-
-
     static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
-
-    public static final int THRESHOLD_STEP = 50;
-    public static final float NEW_THRESHOLD = 0.1f;
-
 
     public static float scaleFactor = 1.0f;
     static int height;
     static int width;
 
-    public static final int MIN_ANGLE = 4;
+    public static final int MIN_ANGLE = 8;
 
     public static final float GAUSSIAN_BLUR_SIGMA = 2f;
 
     // min distance of 2 lines calculated by line.distanceToPoint
-    private static final int MERGE_MAX_LINE_DISTANCE = 20;
+    private static final int MERGE_MAX_LINE_DISTANCE = 30;
 
     // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    private static final int MERGE_MAX_LINE_GAP = 100;
+    private static final int MERGE_MAX_LINE_GAP = 120;
 
     private static final int BOUNDING_GAP_REMOVAL = 3;
 
@@ -80,11 +69,6 @@ public class App {
 
     public static void main(String[] args) throws IOException {
         testDetectBox();
-//        testIntersect();
-//        testMergeLines();
-//        testAngleGap();
-//        detectWithCanny(new File(LINUX_DIR_IN+"/8.jpg"), new File(LINUX_DIR_OUT));
-//        bruteForceCanny();
     }
 
 
@@ -98,15 +82,9 @@ public class App {
             }
     }
 
-    static FImage applyCannyDetector(FImage grey, File fin, File fout) {
+    static FImage applyCannyDetector(FImage grey) {
         CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
-//        FImage grey = frame.getBand(S_CHANNEL_ID);
-
-
         grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
-//        ImageUtilities.write(grey, new File(fout.getAbsolutePath()+"/blur/"+fin.getName()));
-
-
         canny.processImage(grey);
         return grey;
     }
@@ -137,10 +115,9 @@ public class App {
 
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
-        FImage edges = applyCannyDetector(frame.flattenMax(), fin, fout);
+        FImage edges = applyCannyDetector(frame.flattenMax());
 
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
-
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
@@ -169,7 +146,6 @@ public class App {
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
     }
-
 
     static List<LineHolder> findBounds(List<Line2d> lines) {
 
@@ -306,18 +282,135 @@ public class App {
         return ht.getLines();
     }
 
-
     static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-
 
         removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
 
 //        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
 
-        removeNoiseX(lines, maxLineDistance, maxLineGap);
-        removeNoiseY(lines, maxLineDistance, maxLineGap);
+        removeLineByMerging(lines, maxLineDistance, maxLineGap);
+
+//        removeNoiseX(lines, maxLineDistance, maxLineGap);
+//        removeNoiseY(lines, maxLineDistance, maxLineGap);
 
         removeLineWithShorterThanThreshold(lines, 80);
+    }
+
+    private static void removeLineByMerging(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        Line2d l1, l2;
+        int beforeMerge, afterMerge;
+        List<Line2d> tmpLines = new ArrayList<>();
+        System.out.print("Merging: ");
+        for(int i = 0; i < lines.size(); i++){
+            tmpLines.clear();
+            l1 = lines.get(i);
+            tmpLines.add(l1);
+            for(int j = i + 1; j < lines.size(); j++){
+                l2 = lines.get(j);
+                if(checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)){
+                    tmpLines.add(l2);
+                }
+            }
+            if(tmpLines.size() > 1){
+                lines.removeAll(tmpLines);
+                System.out.print(" "+tmpLines.size());
+                beforeMerge = tmpLines.size();
+                mergeLines2(tmpLines, maxLineGap);
+                afterMerge = tmpLines.size();
+                lines.addAll(tmpLines);
+                if(afterMerge < beforeMerge)
+                    i--;
+            }
+        }
+        System.out.println("");
+    }
+
+    private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
+        boolean mergeX = getHorizontalAngleInDegree(lines.get(0)) < 45;
+        if(mergeX){
+            for(Line2d l: lines) sortByXAxis(l);
+            lines.sort(Comparator.comparingDouble(Line2d::minX));
+        }else{
+            for(Line2d l: lines) sortByYAxis(l);
+            lines.sort(Comparator.comparingDouble(Line2d::minY));
+        }
+
+        Line2d candidateLine = findCandidateLineByMinimumLineDistance(lines).clone();
+
+        Line2d l1, l2;
+        int idx;
+        for(int i = 0; i < lines.size(); i++){
+            l1 = lines.get(i);
+            while((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1){
+                l2 = lines.get(idx);
+
+                if(sumLinesDistance(l1, candidateLine) < sumLinesDistance(l2, candidateLine)){
+                    Collections.swap(lines, i, idx);
+                    l1 = lines.get(i); // keep this
+                    l2 = lines.get(idx);
+                }
+
+
+                if(mergeX) mergeX(l1, l2);
+                else mergeY(l1, l2);
+
+                lines.remove(idx);
+
+            }
+        }
+
+
+    }
+
+    private static double sumLinesDistance(Line2d l1, Line2d l2){
+        return l1.distanceToLine(l2.begin) + l1.distanceToLine(l2.end);
+    }
+
+    private static Line2d findCandidateLineByMinimumLineDistance(List<Line2d> lines) {
+        int idx = -1;
+        double dist;
+        double minDistance = Double.MAX_VALUE;
+
+        Line2d l1, l2;
+        for(int i = 0; i < lines.size(); i++){
+            dist = 0;
+            l1 = lines.get(i);
+            for(int j = 0; j < lines.size(); j++){
+                if (i==j) continue;
+                l2 = lines.get(j);
+                dist += l1.distanceToLine(l2.begin) + l1.distanceToLine(l2.end);
+            }
+            if(dist < minDistance){
+                minDistance = dist;
+                idx = i;
+            }
+        }
+        return lines.get(idx);
+    }
+
+    private static int findClosestLineByLineGap(List<Line2d> lines, Line2d line, int maxLineGap) {
+        double minGap = maxLineGap + 1;
+        int idx = -1;
+        Line2d l1, l2;
+        for(int i = 0; i < lines.size(); i++){
+            l1 = lines.get(i);
+            if(l1!=line){
+                double gap = calculateLineGap(l1, line);
+                if(gap < minGap && gap < maxLineGap){
+                    minGap = gap;
+                    idx = i;
+                }
+            }
+        }
+        return idx;
+    }
+
+    private static boolean checkIfMayOnTheSameLine(List<Line2d> lines, Line2d line, int maxLineDistance) {
+        for(Line2d l: lines){
+            if(!isOnTheSameLine(l, line, maxLineDistance))
+                return false;
+        }
+        return true;
     }
 
     private static void removeNoiseX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {

@@ -11,12 +11,11 @@ import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static uk.ac.soton.ecs.jsh2.App.THRESHOLD_STEP;
+import static uk.ac.soton.ecs.jsh2.OldAlgorithm.THRESHOLD_STEP;
+
 
 public class MyUtils {
     static int width = 720;
