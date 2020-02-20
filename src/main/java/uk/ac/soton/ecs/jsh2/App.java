@@ -61,7 +61,7 @@ public class App {
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
     private static int HOUGH_LINE_MAX_LINE_GAP = 10;
-    private static int HOUGH_LINE_THRESHOLD = 30;
+    private static int HOUGH_LINE_THRESHOLD = 20;
     private static int HOUGH_MIN_LINE_LENGTH = 20;
     private static int HOUGH_MAX_NUM_LINE = 1000;
 
