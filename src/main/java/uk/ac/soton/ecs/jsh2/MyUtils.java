@@ -16,11 +16,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static uk.ac.soton.ecs.jsh2.App.THRESHOLD_STEP;
 
 public class MyUtils {
     static int width = 720;
     static int height = 1080;
+    public static final int THRESHOLD_STEP = 50;
+    public static final float NEW_THRESHOLD = 0.1f;
+
 
     private static List<Line2d> selectRawLines(Point2d center, List<Line2d> lines) {
         Line2d top = null, right = null, bottom = null, left = null;

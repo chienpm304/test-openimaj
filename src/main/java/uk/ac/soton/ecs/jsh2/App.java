@@ -1,6 +1,5 @@
 package uk.ac.soton.ecs.jsh2;
 
-import org.apache.lucene.search.grouping.CollectedSearchGroup;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -25,38 +24,29 @@ import static java.lang.Math.*;
  * OpenIMAJ Hello world!
  */
 public class App {
-    public static final float THRESHOLD_BIN_INV = 0.07133f;
     public static final float STANDARD_WIDTH = 720;
-    public static final int H_CHANNEL_ID = 0;
     public static final int S_CHANNEL_ID = 1;
-    public static final int V_CHANNEL_ID = 2;
 
     public static final String WINDOW_DIR = "D:/detect/input/AZdoc/new";
     public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
 
     private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
-
-
-
     static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
-
-    public static final int THRESHOLD_STEP = 50;
-    public static final float NEW_THRESHOLD = 0.1f;
 
 
     public static float scaleFactor = 1.0f;
     static int height;
     static int width;
 
-    public static final int MIN_ANGLE = 4;
+    public static final int MIN_ANGLE = 6;
 
     public static final float GAUSSIAN_BLUR_SIGMA = 2f;
 
     // min distance of 2 lines calculated by line.distanceToPoint
-    private static final int MERGE_MAX_LINE_DISTANCE = 20;
+    private static final int MERGE_MAX_LINE_DISTANCE = 30;
 
     // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    private static final int MERGE_MAX_LINE_GAP = 100;
+    private static final int MERGE_MAX_LINE_GAP = 80;
 
     private static final int BOUNDING_GAP_REMOVAL = 3;
 
@@ -71,7 +61,7 @@ public class App {
     public static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
     private static int HOUGH_LINE_MAX_LINE_GAP = 10;
-    private static int HOUGH_LINE_THRESHOLD = 20;
+    private static int HOUGH_LINE_THRESHOLD = 30;
     private static int HOUGH_MIN_LINE_LENGTH = 20;
     private static int HOUGH_MAX_NUM_LINE = 1000;
 
@@ -89,8 +79,8 @@ public class App {
 
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(WINDOW_OUT_DIR);
+        File fin = new File(LINUX_DIR_IN);
+        File fout = new File(LINUX_DIR_OUT);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
@@ -98,7 +88,7 @@ public class App {
             }
     }
 
-    static FImage applyCannyDetector(FImage grey, File fin, File fout) {
+    static FImage applyCannyDetector(FImage grey) {
         CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
 //        FImage grey = frame.getBand(S_CHANNEL_ID);
 
@@ -137,7 +127,7 @@ public class App {
 
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
-        FImage edges = applyCannyDetector(frame.flattenMax(), fin, fout);
+        FImage edges = applyCannyDetector(frame.flattenMax());
 
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
@@ -152,6 +142,7 @@ public class App {
         System.out.println("Before merge: " + lines.size());
 
         removeNoiseLines(lines, MERGE_MAX_LINE_DISTANCE,  MERGE_MAX_LINE_GAP);
+//        removeNoiseLines(lines, MERGE_MAX_LINE_DISTANCE,  MERGE_MAX_LINE_GAP/5);
 
         System.out.println("After merge: " + lines.size());
 
@@ -347,6 +338,7 @@ public class App {
                 System.out.println("merging "+tmpLines.size());
                 Line2d newLine = mergeLines(tmpLines);
                 lines.set(i, newLine);
+                i--;
             }
         }
     }
@@ -378,6 +370,7 @@ public class App {
                 System.out.println("merging "+tmpLines.size());
                 Line2d newLine = mergeLines(tmpLines);
                 lines.set(i, newLine);
+                i--;
             }
         }
     }
@@ -662,12 +655,12 @@ public class App {
             frame.drawLine(line, 2, lineColor);
             frame.drawPoint(line.begin, RGBColour.RED, 3);
             frame.drawPoint(line.end, RGBColour.YELLOW, 4);
-            frame.drawText(
-                    Math.round(getHorizontalAngleInDegree(line)) + "*",
-                    (int) line.calculateCentroid().getX(),
-                    (int) line.calculateCentroid().getY(),
-                    HersheyFont.ROMAN_DUPLEX,
-                    20, RGBColour.BLUE);
+//            frame.drawText(
+//                    Math.round(getHorizontalAngleInDegree(line)) + "*",
+//                    (int) line.calculateCentroid().getX(),
+//                    (int) line.calculateCentroid().getY(),
+//                    HersheyFont.ROMAN_DUPLEX,
+//                    20, RGBColour.BLUE);
         }
 
         frame.drawText(lines.size() + "", (int) center.getX(),

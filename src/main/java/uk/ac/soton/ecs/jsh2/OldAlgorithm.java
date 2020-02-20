@@ -14,6 +14,7 @@ import org.openimaj.math.geometry.shape.Rectangle;
 import java.util.List;
 
 import static uk.ac.soton.ecs.jsh2.App.*;
+import static uk.ac.soton.ecs.jsh2.MyUtils.NEW_THRESHOLD;
 
 public class OldAlgorithm {
 
