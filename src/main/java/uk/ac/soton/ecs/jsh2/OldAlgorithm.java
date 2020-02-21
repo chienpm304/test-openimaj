@@ -14,13 +14,16 @@ import org.openimaj.math.geometry.shape.Rectangle;
 import java.util.List;
 
 import static uk.ac.soton.ecs.jsh2.App.*;
-import static uk.ac.soton.ecs.jsh2.MyUtils.NEW_THRESHOLD;
 
 public class OldAlgorithm {
 
     public static final int THRESHOLD_STEP = 50;
     public static final float NEW_THRESHOLD = 0.1f;
 
+
+    void testHL(){
+//        HoughLines hl = new HoughLines()
+    }
 
     private static Tetragram findBoundingBoxByContour(MBFImage frame, FImage grey) {
         Contour contour = SuzukiContourProcessor.findContours(grey);
@@ -175,7 +178,7 @@ public class OldAlgorithm {
 //
 //        scaleFactor = scaleFactor>1?1.0f:scaleFactor;
 //        System.out.println("scale: "+scaleFactor);
-        FImage s = hsv.getBand(S_CHANNEL_ID);//.processInplace(new ResizeProcessor(scaleFactor));
+        FImage s = hsv.getBand(Constants.S_CHANNEL_ID);//.processInplace(new ResizeProcessor(scaleFactor));
 //        DisplayUtilities.display(s);
 //        s.analyseWith(new HistogramAnalyser(64));
 

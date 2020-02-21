@@ -28,14 +28,14 @@ public class TestFunc {
     }
 
     private static void bruteForceCanny() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(LINUX_DIR_OUT);
+        File fin = new File(Constants.WINDOW_DIR);
+        File fout = new File(Constants.LINUX_DIR_OUT);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile()) {
 
                     MBFImage frame = ImageUtilities.readMBF(file);
-                    scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+                    scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
                     scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
                     frame = frame.process(new ResizeProcessor(scaleFactor));
@@ -44,13 +44,13 @@ public class TestFunc {
 
                     MBFImage hsv = Transforms.RGB_TO_HSV(frame);
 
-                    for (CANNY_SIGMA = 3f; CANNY_SIGMA < 6; CANNY_SIGMA += 2f) {
-                        for (CANNY_LOW_THRESH = 0.01f; CANNY_LOW_THRESH < 0.2; CANNY_LOW_THRESH += 0.03) {
-                            for (CANNY_HIGH_THRESH = CANNY_LOW_THRESH + 0.05f; CANNY_HIGH_THRESH < 0.3; CANNY_HIGH_THRESH += 0.03) {
-                                LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + CANNY_SIGMA + "_" + CANNY_LOW_THRESH + "_" + CANNY_HIGH_THRESH;
-                                fout = new File(LINUX_DIR_OUT);
+                    for (Constants.CANNY_SIGMA = 3f; Constants.CANNY_SIGMA < 6; Constants.CANNY_SIGMA += 2f) {
+                        for (Constants.CANNY_LOW_THRESH = 0.01f; Constants.CANNY_LOW_THRESH < 0.2; Constants.CANNY_LOW_THRESH += 0.03) {
+                            for (Constants.CANNY_HIGH_THRESH = Constants.CANNY_LOW_THRESH + 0.05f; Constants.CANNY_HIGH_THRESH < 0.3; Constants.CANNY_HIGH_THRESH += 0.03) {
+                                Constants.LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/java/edges/" + Constants.CANNY_SIGMA + "_" + Constants.CANNY_LOW_THRESH + "_" + Constants.CANNY_HIGH_THRESH;
+                                fout = new File(Constants.LINUX_DIR_OUT);
                                 if (!fout.exists()) fout.mkdirs();
-                                FImage edges = applyCannyDetector(hsv.getBand(S_CHANNEL_ID));
+                                FImage edges = applyCannyDetector(hsv.getBand(Constants.S_CHANNEL_ID));
                                 ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/" + file.getName()));
 
                             }
@@ -78,7 +78,7 @@ public class TestFunc {
     private static Tetragram detectLSD(File fin, File fout) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-        scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+        scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
         frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
@@ -87,7 +87,7 @@ public class TestFunc {
         height = frame.getHeight();
 
         System.out.println("processing: " + fin.getName() + "...");
-        GammaCorrection gc = new GammaCorrection(GAMMA);
+        GammaCorrection gc = new GammaCorrection(Constants.GAMMA);
         for (int i = 0; i < frame.numBands(); i++) {
             frame.getBand(i).processInplace(gc);
         }

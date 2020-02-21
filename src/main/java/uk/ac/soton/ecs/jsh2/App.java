@@ -19,52 +19,16 @@ import java.util.*;
 import java.util.List;
 
 import static java.lang.Math.*;
+import static uk.ac.soton.ecs.jsh2.Constants.REMOVE_AFTER_MERGE_THRESHOLD;
 
 /**
  * OpenIMAJ Hello world!
  */
 public class App {
-    public static final float STANDARD_WIDTH = 720;
-    public static final int S_CHANNEL_ID = 1;
-
-    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/new";
-    public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
-
-    private static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
-    static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
     public static float scaleFactor = 1.0f;
     static int height;
     static int width;
-
-    public static final int MIN_ANGLE = 8;
-
-    public static final float GAUSSIAN_BLUR_SIGMA = 2f;
-
-    // min distance of 2 lines calculated by line.distanceToPoint
-    private static final int MERGE_MAX_LINE_DISTANCE = 30;
-
-    // min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    private static final int MERGE_MAX_LINE_GAP = 120;
-
-    private static final int BOUNDING_GAP_REMOVAL = 3;
-
-    //0.05 - 0.1 is ok
-    public static float CANNY_LOW_THRESH = 0.01f;
-    public static float CANNY_HIGH_THRESH = 0.05f;
-    public static float CANNY_SIGMA = 3f;
-
-
-
-    public static final double HOUGH_LINE_RHO = 1;
-    public static final double HOUGH_LINE_THETA = Math.PI / 180d;
-
-    private static int HOUGH_LINE_MAX_LINE_GAP = 10;
-    private static int HOUGH_LINE_THRESHOLD = 20;
-    private static int HOUGH_MIN_LINE_LENGTH = 20;
-    private static int HOUGH_MAX_NUM_LINE = 1000;
-
-    public static final double GAMMA = 2.2d;
 
 
     public static void main(String[] args) throws IOException {
@@ -73,8 +37,8 @@ public class App {
 
 
     private static void testDetectBox() throws IOException {
-        File fin = new File(WINDOW_DIR);
-        File fout = new File(WINDOW_OUT_DIR);
+        File fin = new File(Constants.LINUX_DIR_IN);
+        File fout = new File(Constants.LINUX_DIR_OUT);
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
@@ -83,8 +47,8 @@ public class App {
     }
 
     static FImage applyCannyDetector(FImage grey) {
-        CannyEdgeDetector canny = new CannyEdgeDetector(CANNY_LOW_THRESH, CANNY_HIGH_THRESH, CANNY_SIGMA);
-        grey.processInplace(new FGaussianConvolve(GAUSSIAN_BLUR_SIGMA));
+        CannyEdgeDetector canny = new CannyEdgeDetector(Constants.CANNY_LOW_THRESH, Constants.CANNY_HIGH_THRESH, Constants.CANNY_SIGMA);
+        grey.processInplace(new FGaussianConvolve(Constants.GAUSSIAN_BLUR_SIGMA));
         canny.processImage(grey);
         return grey;
     }
@@ -93,9 +57,9 @@ public class App {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
         if(frame.getWidth() > frame.getHeight())
-            scaleFactor = STANDARD_WIDTH / (float) frame.getHeight();
+            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getHeight();
         else
-            scaleFactor = STANDARD_WIDTH / (float) frame.getWidth();
+            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
 
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
@@ -108,7 +72,7 @@ public class App {
 
         System.out.println("processing: " + fin.getName() + "...");
 
-        GammaCorrection gc = new GammaCorrection(GAMMA);
+        GammaCorrection gc = new GammaCorrection(Constants.GAMMA);
         for (int i = 0; i < frame.numBands(); i++) {
             frame.getBand(i).processInplace(gc);
         }
@@ -128,7 +92,7 @@ public class App {
 
         System.out.println("Before merge: " + lines.size());
 
-        removeNoiseLines(lines, MERGE_MAX_LINE_DISTANCE,  MERGE_MAX_LINE_GAP);
+        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
 
         System.out.println("After merge: " + lines.size());
 
@@ -273,30 +237,33 @@ public class App {
                 points,
                 width,
                 height,
-                HOUGH_LINE_RHO,
-                HOUGH_LINE_THETA,
-                HOUGH_LINE_THRESHOLD,
-                HOUGH_LINE_MAX_LINE_GAP,
-                HOUGH_MIN_LINE_LENGTH, 
-                HOUGH_MAX_NUM_LINE);
+                Constants.HOUGH_LINE_RHO,
+                Constants.HOUGH_LINE_THETA,
+                Constants.HOUGH_LINE_THRESHOLD,
+                Constants.HOUGH_LINE_MAX_LINE_GAP,
+                Constants.HOUGH_MIN_LINE_LENGTH,
+                Constants.HOUGH_MAX_NUM_LINE);
         return ht.getLines();
     }
 
     static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
 
-        removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
+        removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
 
 //        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
 
-        removeLineByMerging(lines, maxLineDistance, maxLineGap);
-
+        removeLineByMergingX(lines, maxLineDistance, maxLineGap);
+        removeLineByMergingY(lines, maxLineDistance, maxLineGap);
 //        removeNoiseX(lines, maxLineDistance, maxLineGap);
 //        removeNoiseY(lines, maxLineDistance, maxLineGap);
 
-        removeLineWithShorterThanThreshold(lines, 80);
+        removeLineWithShorterThanThreshold(lines, REMOVE_AFTER_MERGE_THRESHOLD);
     }
 
-    private static void removeLineByMerging(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for(Line2d l: lines) sortByXAxis(l);
+        lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
+
         Line2d l1, l2;
         int beforeMerge, afterMerge;
         List<Line2d> tmpLines = new ArrayList<>();
@@ -304,6 +271,41 @@ public class App {
         for(int i = 0; i < lines.size(); i++){
             tmpLines.clear();
             l1 = lines.get(i);
+            if(getHorizontalAngleInDegree(l1) >= 45)
+                continue;
+            tmpLines.add(l1);
+            for(int j = i + 1; j < lines.size(); j++){
+                l2 = lines.get(j);
+                if(checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)){
+                    tmpLines.add(l2);
+                }
+            }
+            if(tmpLines.size() > 1){
+                lines.removeAll(tmpLines);
+                System.out.print(" "+tmpLines.size());
+                beforeMerge = tmpLines.size();
+                mergeLines2(tmpLines, maxLineGap);
+                afterMerge = tmpLines.size();
+                lines.addAll(tmpLines);
+                if(afterMerge < beforeMerge)
+                    i--;
+            }
+        }
+        System.out.println("");
+    }
+    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for(Line2d l: lines) sortByYAxis(l);
+        lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
+
+        Line2d l1, l2;
+        int beforeMerge, afterMerge;
+        List<Line2d> tmpLines = new ArrayList<>();
+        System.out.print("Merging: ");
+        for(int i = 0; i < lines.size(); i++){
+            tmpLines.clear();
+            l1 = lines.get(i);
+            if(getHorizontalAngleInDegree(l1) < 45)
+                continue;
             tmpLines.add(l1);
             for(int j = i + 1; j < lines.size(); j++){
                 l2 = lines.get(j);
@@ -329,10 +331,10 @@ public class App {
         boolean mergeX = getHorizontalAngleInDegree(lines.get(0)) < 45;
         if(mergeX){
             for(Line2d l: lines) sortByXAxis(l);
-            lines.sort(Comparator.comparingDouble(Line2d::minX));
+            lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
         }else{
             for(Line2d l: lines) sortByYAxis(l);
-            lines.sort(Comparator.comparingDouble(Line2d::minY));
+            lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
         }
 
         Line2d candidateLine = findCandidateLineByMinimumLineDistance(lines).clone();
@@ -342,9 +344,13 @@ public class App {
         for(int i = 0; i < lines.size(); i++){
             l1 = lines.get(i);
             while((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1){
+                if(i>=lines.size() || idx >= lines.size())
+                    break;;
+
                 l2 = lines.get(idx);
 
-                if(sumLinesDistance(l1, candidateLine) < sumLinesDistance(l2, candidateLine)){
+//                if(sumLinesDistance(l1, candidateLine) < sumLinesDistance(l2, candidateLine)){
+                if(l1.calculateLength() < l2.calculateLength()){
                     Collections.swap(lines, i, idx);
                     l1 = lines.get(i); // keep this
                     l2 = lines.get(idx);
@@ -537,11 +543,12 @@ public class App {
     }
 
     private static boolean isOnTheSameLine(Line2d l1, Line2d l2, int threshold) {
-        return l1.isOnLine(l2.begin, threshold)
+        return
+                   l1.isOnLine(l2.begin, threshold)
                 && l1.isOnLine(l2.end, threshold)
                 && l2.isOnLine(l1.begin, threshold)
                 && l2.isOnLine(l1.end, threshold)
-                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= MIN_ANGLE;
+                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= Constants.MIN_ANGLE;
     }
 
 
@@ -549,7 +556,7 @@ public class App {
 
 //        removeLineWithShorterThanTheshold(lines, 40);
 
-        removeLinesNearbyBounding(lines, BOUNDING_GAP_REMOVAL);
+        removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
 
 //        merge
 
@@ -560,10 +567,10 @@ public class App {
             for (int j = i + 1; j < lines.size(); j++) {
                 l2 = lines.get(j);
                 if (l1 != l2
-                        && l2.distanceToLine(l1.begin) < MERGE_MAX_LINE_DISTANCE
-                        && l2.distanceToLine(l1.end) < MERGE_MAX_LINE_DISTANCE
-                        && l1.distanceToLine(l2.begin) < MERGE_MAX_LINE_DISTANCE
-                        && l1.distanceToLine(l2.end) < MERGE_MAX_LINE_DISTANCE
+                        && l2.distanceToLine(l1.begin) < Constants.MERGE_MAX_LINE_DISTANCE
+                        && l2.distanceToLine(l1.end) < Constants.MERGE_MAX_LINE_DISTANCE
+                        && l1.distanceToLine(l2.begin) < Constants.MERGE_MAX_LINE_DISTANCE
+                        && l1.distanceToLine(l2.end) < Constants.MERGE_MAX_LINE_DISTANCE
                 ) {
                     if (l1.calculateLength() < l2.calculateLength()) { // keep line i
                         Collections.swap(lines, i, j);
