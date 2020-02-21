@@ -100,7 +100,7 @@ public class TestFunc {
 
         System.out.println("After merge: " + lines.size());
 
-        drawLines(frame, center, lines, RGBColour.GRAY);
+        drawLines(frame, center, lines, RGBColour.GRAY,false);
 
         List<LineHolder> results = findBounds(lines);
 

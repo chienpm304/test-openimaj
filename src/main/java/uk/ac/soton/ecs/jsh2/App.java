@@ -1,5 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
+import org.apache.logging.log4j.core.net.TcpSocketManager;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -19,12 +20,12 @@ import java.util.*;
 import java.util.List;
 
 import static java.lang.Math.*;
-import static uk.ac.soton.ecs.jsh2.Constants.REMOVE_AFTER_MERGE_THRESHOLD;
 
 /**
  * OpenIMAJ Hello world!
  */
 public class App {
+
 
     public static float scaleFactor = 1.0f;
     static int height;
@@ -86,22 +87,20 @@ public class App {
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
         MBFImage tmp = frame.clone();
-        drawLines(tmp,center, lines, RGBColour.GREEN);
+        drawLines(tmp,center, lines, RGBColour.GREEN, false);
         ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
 
 
         System.out.println("Before merge: " + lines.size());
 
         removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
+//        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE/2, Constants.MERGE_MAX_LINE_GAP/3);
 
         System.out.println("After merge: " + lines.size());
 
-        drawLines(frame, center, lines, RGBColour.GREEN);
+        drawLines(frame, center, lines, RGBColour.GREEN, true);
 
 //        List<LineHolder> results = findBounds(lines);
-
-
-//        drawLines(frame,center, lines, RGBColour.BLUE);
 //
 //        if (!results.isEmpty())
 //            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
@@ -257,7 +256,29 @@ public class App {
 //        removeNoiseX(lines, maxLineDistance, maxLineGap);
 //        removeNoiseY(lines, maxLineDistance, maxLineGap);
 
-        removeLineWithShorterThanThreshold(lines, REMOVE_AFTER_MERGE_THRESHOLD);
+        removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
+//        removeLineNotMakeSquareAngle(lines);
+    }
+
+    private static void removeLineNotMakeSquareAngle(List<Line2d> lines) {
+        int count;
+        for(int i = 0; i < lines.size(); i++){
+            count = 0;
+            for(int j = 0; j < lines.size(); j++){
+                if(i==j) continue;;
+                double f1 = getHorizontalAngleInDegree(lines.get(i));
+                double f2 = getHorizontalAngleInDegree(lines.get(j));
+                if(Math.abs(f1-f2) >= 60){
+                    count++;
+                }
+            }
+            if(count < 2){
+                lines.remove(i);
+                i--;
+            }
+
+        }
+
     }
 
     private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
@@ -337,7 +358,7 @@ public class App {
             lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
         }
 
-        Line2d candidateLine = findCandidateLineByMinimumLineDistance(lines).clone();
+//        Line2d candidateLine = findCandidateLineByMinimumLineDistance(lines).clone();
 
         Line2d l1, l2;
         int idx;
@@ -753,7 +774,7 @@ public class App {
         }
     }
 
-    protected static void drawLines(MBFImage frame, Point2d center, List<Line2d> lines, Float[] lineColor) {
+    protected static void drawLines(MBFImage frame, Point2d center, List<Line2d> lines, Float[] lineColor, boolean drawAngle) {
         System.out.println(lines.size() + " lines");
 
         Float[] orgColor = lineColor;
@@ -762,7 +783,8 @@ public class App {
             frame.drawLine(line, 2, lineColor);
             frame.drawPoint(line.begin, RGBColour.RED, 3);
             frame.drawPoint(line.end, RGBColour.YELLOW, 4);
-            frame.drawText(
+            if(drawAngle)
+                frame.drawText(
                     Math.round(getHorizontalAngleInDegree(line)) + "*",
                     (int) line.calculateCentroid().getX(),
                     (int) line.calculateCentroid().getY(),
