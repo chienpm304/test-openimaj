@@ -3,12 +3,14 @@ package uk.ac.soton.ecs.jsh2;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
+import org.openimaj.math.geometry.shape.Polygon;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 
-public class Tetragram {
+public class Tetragram implements Comparable<Tetragram> {
     private Point2d tl = new Point2dImpl(),
             tr = new Point2dImpl(),
             br = new Point2dImpl(),
@@ -117,5 +119,12 @@ public class Tetragram {
         lines.add(new Line2d(br, bl));
         lines.add(new Line2d(bl, tl));
         return lines;
+    }
+
+    @Override
+    public int compareTo(Tetragram o) {
+        Polygon thizPoly = new Polygon(this.toList());
+        Polygon thatPoly = new Polygon(o.toList());
+        return Double.compare(thizPoly.calculateArea(), thatPoly.calculateArea());
     }
 }

@@ -61,57 +61,61 @@ public class TestFunc {
 
     }
 
-    private static void testAngleGap() {
-        System.out.println(calcAngleDiffInDegree(-89, 89));
-    }
+//    private static void testAngleGap() {
+//        System.out.println(calcAngleDiffInDegree(-89, 89));
+//    }
 
-    private static void testMergeLines() {
-        Line2d line1 = new Line2d(1, 1, 1, 6);
-        Line2d line2 = new Line2d(1.2f, 4.8f, 1.2f, 6.5f);
-        System.out.println("before merge: ");
-        System.out.println("keep: " + line1.toString());
+//    private static void testMergeLines() {
+//        Line2d line1 = new Line2d(1, 1, 1, 6);
+//        Line2d line2 = new Line2d(1.2f, 4.8f, 1.2f, 6.5f);
+//        System.out.println("before merge: ");
+//        System.out.println("keep: " + line1.toString());
+//
+//        mergeLine(line1, line2);
+//        System.out.println("after merge: " + line1.toString());
+//    }
 
-        mergeLine(line1, line2);
-        System.out.println("after merge: " + line1.toString());
-    }
-
-    private static Tetragram detectLSD(File fin, File fout) throws IOException {
-
-        MBFImage frame = ImageUtilities.readMBF(fin);
-        scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
-        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
-
-        frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
-
-        width = frame.getWidth();
-        height = frame.getHeight();
-
-        System.out.println("processing: " + fin.getName() + "...");
-        GammaCorrection gc = new GammaCorrection(Constants.GAMMA);
-        for (int i = 0; i < frame.numBands(); i++) {
-            frame.getBand(i).processInplace(gc);
-        }
-
-        Point2dImpl center = new Point2dImpl(width / 2, height / 2);
-
-        List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
-
-        removeSimilarAndNoiseLines(lines);
-
-        System.out.println("After merge: " + lines.size());
-
-        drawLines(frame, center, lines, RGBColour.GRAY,false);
-
-        List<LineHolder> results = findBounds(lines);
-
-
-        if (!results.isEmpty())
-            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
-
-
-        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
-        return null;
-    }
+//    private static Tetragram detectLSD(File fin, File fout) throws IOException {
+//
+//        MBFImage frame = ImageUtilities.readMBF(fin);
+//        scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
+//        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+//
+//        frame = frame.process(new ResizeProcessor(scaleFactor));//.process(new FGaussianConvolve(2f));
+//
+//        width = frame.getWidth();
+//        height = frame.getHeight();
+//
+//        System.out.println("processing: " + fin.getName() + "...");
+//        GammaCorrection gc = new GammaCorrection(Constants.GAMMA);
+//        for (int i = 0; i < frame.numBands(); i++) {
+//            frame.getBand(i).processInplace(gc);
+//        }
+//
+//        Point2dImpl center = new Point2dImpl(width / 2, height / 2);
+//
+//        List<Line2d> lines = getLinesUsingLineSegmentDetector(frame);
+//
+//        removeSimilarAndNoiseLines(lines);
+//
+//        System.out.println("After merge: " + lines.size());
+//
+//        drawLines(frame, center, lines, RGBColour.GRAY,false);
+//
+//        List<LineHolder> results = findBounds2(lines);
+//
+//
+//        if (!results.isEmpty()) {
+////            drawBound(frame, center, results.get(0).toList(), RGBColour.GREEN, RGBColour.YELLOW);
+//            for(LineHolder lh: results){
+//                Float[] color = getRandomColor();
+//                drawBound(frame, center, lh.toList(), color, color);
+//            }
+//        }
+//
+//        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+//        return null;
+//    }
 
     private static List<Line2d> getLinesUsingLineSegmentDetector(MBFImage image) {
         LSD lsd = new LSD(image);

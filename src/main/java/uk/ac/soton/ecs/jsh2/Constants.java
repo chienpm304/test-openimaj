@@ -13,7 +13,7 @@ public class Constants {
 
     public static final int MIN_ANGLE = 8;
 
-    public static final int MERGE_MAX_LINE_DISTANCE = 30;// min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
+    public static final int MERGE_MAX_LINE_DISTANCE = 20;// min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
     public static final int MERGE_MAX_LINE_GAP = 100; //50is ok
     public static final int MERGE_GAP_PER_LINE = 10;
     public static final int BOUNDING_GAP_REMOVAL = 3;

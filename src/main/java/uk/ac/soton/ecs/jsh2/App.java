@@ -1,7 +1,5 @@
 package uk.ac.soton.ecs.jsh2;
 
-import com.sun.xml.bind.v2.runtime.reflect.opt.Const;
-import org.apache.logging.log4j.core.net.TcpSocketManager;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
@@ -99,131 +97,272 @@ public class App {
 
         System.out.println("After merge: " + lines.size());
 
-        drawLines(frame, center, lines, RGBColour.GREEN, true);
+        MBFImage merged = frame.clone();
+        drawLines(merged, center, lines, RGBColour.GREEN, true);
+        ImageUtilities.write(merged, new File(fout.getAbsolutePath() + "/merged/" + fin.getName()));
 
-//        List<LineHolder> results = findBounds(lines);
+        Tetragram bound = findBounds2(lines);
+
+//        ArrayList<Tetragram> res = new ArrayList<>();
 //
-//        if (!results.isEmpty())
-//            drawBound(frame, center, results.get(0).lines, RGBColour.GREEN, RGBColour.YELLOW);
+//        for(LineHolder lh: holders)
+//            res.add(lh.getBounding2(width, height));
+//
+//        Collections.sort(res, Collections.reverseOrder());
 
+        if (bound!=null) {
+            drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
+        }
 
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
     }
+    static Tetragram findBounds2(List<Line2d> lines) {
 
-    static List<LineHolder> findBounds(List<Line2d> lines) {
+        ArrayList<LineHolder> verticals = new ArrayList<>();
+        ArrayList<LineHolder> horizontals = new ArrayList<>();
 
-        ArrayList<LineHolder> res = new ArrayList<>();
+        LineHolder holder;
 
         Line2d base1, base2, fit1, fit2;
         double b1, b2, f1, f2;
         int n = lines.size();
         boolean addDummyLine = false;
-        int angle_step = 5;
+        int angle_step = 30;
         boolean detected = false;
+        ArrayList<Integer> indices = new ArrayList<>();
 
-        while (res.isEmpty() && angle_step <= 45) {
-            for (int i = 0; i < n - 1; i++) {
+        // find vertical line (left, right)
+        while (verticals.isEmpty() && angle_step <= 45) {
+
+            for(int i = 0; i < lines.size()-1; i++){
+
                 base1 = lines.get(i);
-                b1 = getAngleInDegree(base1);
-                for (int j = i + 1; j < n; j++) {
+                b1 = getHorizontalAngleInDegree(base1);
+
+
+
+                for(int j = i + 1; j < lines.size(); j++){
                     base2 = lines.get(j);
-                    b2 = getAngleInDegree(base2);
-                    detected = false;
-                    if (calcAngleDiffInDegree(b1, b2) <= angle_step) {
+                    b2 = getHorizontalAngleInDegree(base2);
 
-                        for (int k = 0; k < lines.size() - 1; k++) {
-                            if (k == i || k == j) continue;
-
-                            fit1 = lines.get(k);
-
-                            for (int l = k + 1; l < lines.size(); l++) {
-                                if (l == i || l == j) continue;
-                                fit2 = lines.get(l);
-
-                                LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
-                                if (lh != null) {
-                                    res.add(lh);
-                                    detected = true;
-                                }
-                            }
+                    if(Math.abs(b1 - b2) <= angle_step){
+                        holder = new LineHolder();
+                        if(b1 > 45){
+                            sortByYAxis(base1);
+                            sortByYAxis(base2);
+                            holder.ver1 = base1;
+                            holder.ver2 = base2;
+                            verticals.add(holder);
+                        }else{
+                            holder.hoz1 = base1;
+                            holder.hoz2 = base2;
+                            horizontals.add(holder);
                         }
-
-                        if (!detected) {
-                            Line2d tmp1 = base1.clone();
-                            Line2d tmp2 = base2.clone();
-                            // added 2 dummy lines
-                            if (b1 < 45) {
-                                sortByXAxis(tmp1);
-                                sortByXAxis(tmp2);
-                            } else {
-                                sortByYAxis(tmp1);
-                                sortByYAxis(tmp2);
-                            }
-
-                            fit1 = new Line2d(base1.begin, base2.begin);
-                            fit2 = new Line2d(base1.end, base2.end);
-
-                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
-                            if (lh != null) {
-                                res.add(lh);
-                                detected = true;
-                            }
-                        }
+                        indices.add(i);
+                        indices.add(j);
                     }
                 }
             }
+
+
             angle_step += 5;
         }
-        Collections.sort(res);
-        System.out.println("Detected " + res.size() + " bounds");
-//        for (LineHolder lh : res) {
-//            System.out.println(lh.toString());
-//        }
+
+        int select_line_const = 30;
+
+        // paring
+        ArrayList<LineHolder> res = new ArrayList<>();
+        Point2d top, bot, left, right;
+        for(LineHolder v: verticals){
+            sortByYAxis(v.ver1);
+            sortByYAxis(v.ver2);
+
+            top = v.ver1.begin.getY() < v.ver2.begin.getY()? v.ver1.begin : v.ver2.begin;
+            bot = v.ver1.end.getY() > v.ver2.end.getY()? v.ver1.end: v.ver2.end;
 
 
-        return res;
-    }
+            for(LineHolder h: horizontals){
+                if(calcHorizontalAngleDiff(v.ver1, h.hoz1) >= 90-angle_step){
+                    // check horizontal lines are located at 2 separated area
+                    if((h.hoz1.distanceToLine(top) < select_line_const && h.hoz2.distanceToLine(bot) < select_line_const)
+                        || (h.hoz1.distanceToLine(bot) < select_line_const && h.hoz2.distanceToLine(top) < select_line_const)){
 
-    private static LineHolder considerToAddBound(Line2d base1, Line2d base2, Line2d fit1, Line2d fit2, double angle_step) {
-        double f1 = getAngleInDegree(fit1);
-        double f2 = getAngleInDegree(fit2);
+                        sortByXAxis(h.hoz1);
+                        sortByXAxis(h.hoz2);
 
-        double b1 = getAngleInDegree(base1);
-        double b2 = getAngleInDegree(base2);
+                        left = h.hoz1.begin.getX() < h.hoz2.begin.getX()? h.hoz1.begin : h.hoz2.begin;
+                        right = h.hoz1.end.getX() > h.hoz2.end.getX()? h.hoz1.end: h.hoz2.end;
 
-        double bases_distance = (base1.distanceToLine(base2.begin) + base1.distanceToLine(base2.end)) / 2d;
+//                        if((v.ver1.distanceToLine(left) < select_line_const*2 && v.ver2.distanceToLine(right) < select_line_const*2)
+//                            || (v.ver1.distanceToLine(right) < select_line_const*2 && v.ver2.distanceToLine(left) < select_line_const*2)){
+                            LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
+                            lh.compute(width, height);
+                            res.add(lh);
+//                        }
+                    }
 
-        if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step * 2 && calcAngleDiffInDegree(b2, f1) >= 90 - angle_step * 2) {
-            if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step * 2 && calcAngleDiffInDegree(b2, f2) >= 90 - angle_step * 2) {
-                LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
-                double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
-                double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
-                double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
-                double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
-
-                double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
-                double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
-                double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
-                double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
-
-                double fits_distance = (fit1.distanceToLine(fit2.begin) + fit1.distanceToLine(fit2.end)) / 2d;
-
-
-                lh.rank =
-                        base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2
-                                - fits_distance - bases_distance +
-                                fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
-
-//                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
-//                                            Math.min(base1_fit2, fit1_base2) +
-//                                            Math.min(base2_fit1, fit2_base1) +
-//                                            Math.min(base2_fit2, fit2_base2);
-
-                return lh;
+                }
             }
         }
-        return null;
+
+//
+//        //remove vertical lines
+//        indices.sort(Comparator.reverseOrder());
+//
+//        for(int i: indices){
+//            try {
+//                lines.remove(i);
+//            } catch (IndexOutOfBoundsException e){
+//                //do nothing
+//            }
+//        }
+        System.out.println("Detected " + res.size() + " bounds");
+
+        if(res.isEmpty())
+            return null;
+
+        res.sort(((Comparator<LineHolder>) (o1, o2) -> {
+            return Double.compare(o1.area, o2.area);
+        }).reversed());
+
+
+        int idx = 0;
+        double min = res.get(0).gap;
+        for(int i = 1; i < 5 && i < res.size(); i++){
+            if(res.get(i).gap < min
+                    && res.get(i).area > res.get(idx).area*0.9){
+                min = res.get(i).gap;
+                idx = i;
+            }
+        }
+        return res.get(idx).tetragram;
+
+
+//        verticals.addAll(horizontals);
+//        return res;
+    }
+
+//    static List<LineHolder> findBounds(List<Line2d> lines) {
+//
+//        ArrayList<LineHolder> res = new ArrayList<>();
+//
+//        Line2d base1, base2, fit1, fit2;
+//        double b1, b2, f1, f2;
+//        int n = lines.size();
+//        boolean addDummyLine = false;
+//        int angle_step = 5;
+//        boolean detected = false;
+//
+//        while (res.isEmpty() && angle_step <= 45) {
+//            for (int i = 0; i < n - 1; i++) {
+//                base1 = lines.get(i);
+//                b1 = getAngleInDegree(base1);
+//                for (int j = i + 1; j < n; j++) {
+//                    base2 = lines.get(j);
+//                    b2 = getAngleInDegree(base2);
+//                    detected = false;
+//                    if (calcAngleDiffInDegree(b1, b2) <= angle_step) {
+//
+//                        for (int k = 0; k < lines.size() - 1; k++) {
+//                            if (k == i || k == j) continue;
+//
+//                            fit1 = lines.get(k);
+//
+//                            for (int l = k + 1; l < lines.size(); l++) {
+//                                if (l == i || l == j) continue;
+//                                fit2 = lines.get(l);
+//
+//                                LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+//                                if (lh != null) {
+//                                    res.add(lh);
+//                                    detected = true;
+//                                }
+//                            }
+//                        }
+//
+//                        if (!detected) {
+//                            Line2d tmp1 = base1.clone();
+//                            Line2d tmp2 = base2.clone();
+//                            // added 2 dummy lines
+//                            if (b1 < 45) {
+//                                sortByXAxis(tmp1);
+//                                sortByXAxis(tmp2);
+//                            } else {
+//                                sortByYAxis(tmp1);
+//                                sortByYAxis(tmp2);
+//                            }
+//
+//                            fit1 = new Line2d(base1.begin, base2.begin);
+//                            fit2 = new Line2d(base1.end, base2.end);
+//
+//                            LineHolder lh = considerToAddBound(base1, base2, fit1, fit2, angle_step);
+//                            if (lh != null) {
+//                                res.add(lh);
+//                                detected = true;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            angle_step += 5;
+//        }
+//        Collections.sort(res);
+//        System.out.println("Detected " + res.size() + " bounds");
+////        for (LineHolder lh : res) {
+////            System.out.println(lh.toString());
+////        }
+//
+//
+//        return res;
+//    }
+
+//    private static LineHolder considerToAddBound(Line2d base1, Line2d base2, Line2d fit1, Line2d fit2, double angle_step) {
+//        double f1 = getAngleInDegree(fit1);
+//        double f2 = getAngleInDegree(fit2);
+//
+//        double b1 = getAngleInDegree(base1);
+//        double b2 = getAngleInDegree(base2);
+//
+//        double bases_distance = (base1.distanceToLine(base2.begin) + base1.distanceToLine(base2.end)) / 2d;
+//
+//        if (calcAngleDiffInDegree(b1, f1) >= 90 - angle_step * 2 && calcAngleDiffInDegree(b2, f1) >= 90 - angle_step * 2) {
+//            if (calcAngleDiffInDegree(b1, f2) >= 90 - angle_step * 2 && calcAngleDiffInDegree(b2, f2) >= 90 - angle_step * 2) {
+//                LineHolder lh = new LineHolder(base1, fit1, base2, fit2);
+//                double base1_fit1 = Math.min(fit1.distanceToLine(base1.begin), fit1.distanceToLine(base1.end));
+//                double base1_fit2 = Math.min(fit2.distanceToLine(base1.begin), fit2.distanceToLine(base1.end));
+//                double base2_fit1 = Math.min(fit1.distanceToLine(base2.begin), fit1.distanceToLine(base2.end));
+//                double base2_fit2 = Math.min(fit2.distanceToLine(base2.begin), fit2.distanceToLine(base2.end));
+//
+//                double fit1_base1 = Math.min(base1.distanceToLine(fit1.begin), base1.distanceToLine(fit1.end));
+//                double fit1_base2 = Math.min(base2.distanceToLine(fit1.begin), base2.distanceToLine(fit1.end));
+//                double fit2_base1 = Math.min(base1.distanceToLine(fit2.begin), base1.distanceToLine(fit2.end));
+//                double fit2_base2 = Math.min(base2.distanceToLine(fit2.begin), base2.distanceToLine(fit2.end));
+//
+//                double fits_distance = (fit1.distanceToLine(fit2.begin) + fit1.distanceToLine(fit2.end)) / 2d;
+//
+//
+//                lh.rank =
+//                        base1_fit1 + base1_fit2 + base2_fit1 + base2_fit2
+//                                - fits_distance - bases_distance +
+//                                fit1_base1 + fit1_base2 + fit2_base1 + fit2_base2;
+//
+////                                    lh.rank = Math.min(base1_fit1, fit1_base1) +
+////                                            Math.min(base1_fit2, fit1_base2) +
+////                                            Math.min(base2_fit1, fit2_base1) +
+////                                            Math.min(base2_fit2, fit2_base2);
+//
+//                return lh;
+//            }
+//        }
+//        return null;
+//    }
+
+    private static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
+        double b1 = getHorizontalAngleInDegree(l1);
+        double b2 = getHorizontalAngleInDegree(l2);
+        return Math.abs(b1 - b2);
+
     }
 
     private static List<Line2d> getLinesUsingHoughTransformP(FImage image) {
@@ -261,26 +400,26 @@ public class App {
 //        removeLineNotMakeSquareAngle(lines);
     }
 
-    private static void removeLineNotMakeSquareAngle(List<Line2d> lines) {
-        int count;
-        for(int i = 0; i < lines.size(); i++){
-            count = 0;
-            for(int j = 0; j < lines.size(); j++){
-                if(i==j) continue;;
-                double f1 = getHorizontalAngleInDegree(lines.get(i));
-                double f2 = getHorizontalAngleInDegree(lines.get(j));
-                if(Math.abs(f1-f2) >= 60){
-                    count++;
-                }
-            }
-            if(count < 2){
-                lines.remove(i);
-                i--;
-            }
-
-        }
-
-    }
+//    private static void removeLineNotMakeSquareAngle(List<Line2d> lines) {
+//        int count;
+//        for(int i = 0; i < lines.size(); i++){
+//            count = 0;
+//            for(int j = 0; j < lines.size(); j++){
+//                if(i==j) continue;;
+//                double f1 = getHorizontalAngleInDegree(lines.get(i));
+//                double f2 = getHorizontalAngleInDegree(lines.get(j));
+//                if(Math.abs(f1-f2) >= 60){
+//                    count++;
+//                }
+//            }
+//            if(count < 2){
+//                lines.remove(i);
+//                i--;
+//            }
+//
+//        }
+//
+//    }
 
     private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
         for(Line2d l: lines) sortByXAxis(l);
@@ -390,31 +529,28 @@ public class App {
 
     }
 
-    private static double sumLinesDistance(Line2d l1, Line2d l2){
-        return l1.distanceToLine(l2.begin) + l1.distanceToLine(l2.end);
-    }
 
-    private static Line2d findCandidateLineByMinimumLineDistance(List<Line2d> lines) {
-        int idx = -1;
-        double dist;
-        double minDistance = Double.MAX_VALUE;
-
-        Line2d l1, l2;
-        for(int i = 0; i < lines.size(); i++){
-            dist = 0;
-            l1 = lines.get(i);
-            for(int j = 0; j < lines.size(); j++){
-                if (i==j) continue;
-                l2 = lines.get(j);
-                dist += l1.distanceToLine(l2.begin) + l1.distanceToLine(l2.end);
-            }
-            if(dist < minDistance){
-                minDistance = dist;
-                idx = i;
-            }
-        }
-        return lines.get(idx);
-    }
+//    private static Line2d findCandidateLineByMinimumLineDistance(List<Line2d> lines) {
+//        int idx = -1;
+//        double dist;
+//        double minDistance = Double.MAX_VALUE;
+//
+//        Line2d l1, l2;
+//        for(int i = 0; i < lines.size(); i++){
+//            dist = 0;
+//            l1 = lines.get(i);
+//            for(int j = 0; j < lines.size(); j++){
+//                if (i==j) continue;
+//                l2 = lines.get(j);
+//                dist += l1.distanceToLine(l2.begin) + l1.distanceToLine(l2.end);
+//            }
+//            if(dist < minDistance){
+//                minDistance = dist;
+//                idx = i;
+//            }
+//        }
+//        return lines.get(idx);
+//    }
 
     private static int findClosestLineByLineGap(List<Line2d> lines, Line2d line, int maxLineGap) {
         double minGap = maxLineGap + 1;
@@ -554,7 +690,7 @@ public class App {
 //        return gap;
 //    }
 
-    private static float calculateLineGap(Line2d l1, Line2d l2) {
+    public static float calculateLineGap(Line2d l1, Line2d l2) {
 
         if(l1.isInLine(l2.begin, Constants.MERGE_MAX_LINE_DISTANCE)
             || l1.isInLine(l2.end, Constants.MERGE_MAX_LINE_DISTANCE)
@@ -757,7 +893,7 @@ public class App {
 
     static Random rnd = new Random();
 
-    private static Float[] getRandomColor() {
+    public static Float[] getRandomColor() {
         return RGBColour.RGB(rnd.nextInt(256), rnd.nextInt(256), rnd.nextInt(256));
     }
 
@@ -766,6 +902,27 @@ public class App {
         float x1 = p1.getX(), x2 = p2.getX(), y1 = p1.getY(), y2 = p2.getY();
 
         return (float) Math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1));
+    }
+
+    static void drawLineHolder(MBFImage frame, List<Line2d> lines, int code, Float[] baseColor, Float[] fitColor) {
+        Float[] lineColor;
+        for (Line2d line : lines) {
+            if (lines.indexOf(line) % 2 == 0)
+                lineColor = baseColor;
+            else
+                lineColor = fitColor;
+
+            frame.drawLine(line, 2, lineColor);
+            frame.drawPoint(line.begin, RGBColour.RED, 5);
+            frame.drawPoint(line.end, RGBColour.YELLOW, 5);
+
+            frame.drawText(
+                    code + "*",
+                    (int) line.calculateCentroid().getX(),
+                    (int) line.calculateCentroid().getY(),
+                    HersheyFont.ROMAN_DUPLEX,
+                    20, RGBColour.BLUE);
+        }
     }
 
     static void drawBound(MBFImage frame, Point2d center, List<Line2d> lines, Float[] baseColor, Float[] fitColor) {
@@ -823,6 +980,14 @@ public class App {
             gap = 180 - gap;
 
         return gap;
+    }
+
+    private static void sortLinesByX(List<Line2d> lines){
+        for(Line2d l: lines) sortByXAxis(l);
+    }
+
+    private static void sortLinesByY(List<Line2d> lines){
+        for(Line2d l: lines) sortByYAxis(l);
     }
 
     private static void sortByYAxis(Line2d line) {
