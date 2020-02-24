@@ -1,5 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
+import com.sun.xml.bind.v2.runtime.reflect.opt.Const;
 import org.apache.logging.log4j.core.net.TcpSocketManager;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
@@ -418,7 +419,7 @@ public class App {
     private static int findClosestLineByLineGap(List<Line2d> lines, Line2d line, int maxLineGap) {
         double minGap = maxLineGap + 1;
         int idx = -1;
-        Line2d l1, l2;
+        Line2d l1;
         for(int i = 0; i < lines.size(); i++){
             l1 = lines.get(i);
             if(l1!=line){
@@ -440,120 +441,127 @@ public class App {
         return true;
     }
 
-    private static void removeNoiseX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-        for(Line2d l: lines) sortByXAxis(l);
-        lines.sort(Comparator.comparingDouble(Line2d::minX));
-
-        Line2d l1, l2;
-        List<Line2d> tmpLines = new ArrayList<>();
-
-        for (int i = 0; i < lines.size() - 1; i++) {
-            tmpLines.clear();
-            l1 = lines.get(i);
-            if(getHorizontalAngleInDegree(l1) >= 45)
-                continue;
-            tmpLines.add(l1);
-
-            for (int j = i + 1; j < lines.size(); j++) {
-                l2 = lines.get(j);
-
-                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
-                    l2 = lines.remove(j);
-                    tmpLines.add(l2);
-                    j--;
-                }
-            }
-            if(tmpLines.size() > 1){
-                System.out.println("merging "+tmpLines.size());
-                Line2d newLine = mergeLines(tmpLines);
-                lines.set(i, newLine);
-            }
-        }
-    }
-
-    private static void removeNoiseY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-        for(Line2d l: lines) sortByYAxis(l);
-        lines.sort(Comparator.comparingDouble(Line2d::minY));
-
-        Line2d l1, l2;
-        List<Line2d> tmpLines = new ArrayList<>();
-
-        for (int i = 0; i < lines.size() - 1; i++) {
-            tmpLines.clear();
-            l1 = lines.get(i);
-            if(getHorizontalAngleInDegree(l1) < 45)
-                continue;
-            tmpLines.add(l1);
-
-            for (int j = i + 1; j < lines.size(); j++) {
-                l2 = lines.get(j);
-
-                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
-                    l2 = lines.remove(j);
-                    tmpLines.add(l2);
-                    j--;
-                }
-            }
-            if(tmpLines.size() > 1){
-                System.out.println("merging "+tmpLines.size());
-                Line2d newLine = mergeLines(tmpLines);
-                lines.set(i, newLine);
-            }
-        }
-    }
+//    private static void removeNoiseX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+//        for(Line2d l: lines) sortByXAxis(l);
+//        lines.sort(Comparator.comparingDouble(Line2d::minX));
+//
+//        Line2d l1, l2;
+//        List<Line2d> tmpLines = new ArrayList<>();
+//
+//        for (int i = 0; i < lines.size() - 1; i++) {
+//            tmpLines.clear();
+//            l1 = lines.get(i);
+//            if(getHorizontalAngleInDegree(l1) >= 45)
+//                continue;
+//            tmpLines.add(l1);
+//
+//            for (int j = i + 1; j < lines.size(); j++) {
+//                l2 = lines.get(j);
+//
+//                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
+//                    l2 = lines.remove(j);
+//                    tmpLines.add(l2);
+//                    j--;
+//                }
+//            }
+//            if(tmpLines.size() > 1){
+//                System.out.println("merging "+tmpLines.size());
+//                Line2d newLine = mergeLines(tmpLines);
+//                lines.set(i, newLine);
+//            }
+//        }
+//    }
+//
+//    private static void removeNoiseY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+//        for(Line2d l: lines) sortByYAxis(l);
+//        lines.sort(Comparator.comparingDouble(Line2d::minY));
+//
+//        Line2d l1, l2;
+//        List<Line2d> tmpLines = new ArrayList<>();
+//
+//        for (int i = 0; i < lines.size() - 1; i++) {
+//            tmpLines.clear();
+//            l1 = lines.get(i);
+//            if(getHorizontalAngleInDegree(l1) < 45)
+//                continue;
+//            tmpLines.add(l1);
+//
+//            for (int j = i + 1; j < lines.size(); j++) {
+//                l2 = lines.get(j);
+//
+//                if (l1 != l2 && isTheSameLineGroup(tmpLines, l2, maxLineDistance, maxLineGap)) {
+//                    l2 = lines.remove(j);
+//                    tmpLines.add(l2);
+//                    j--;
+//                }
+//            }
+//            if(tmpLines.size() > 1){
+//                System.out.println("merging "+tmpLines.size());
+//                Line2d newLine = mergeLines(tmpLines);
+//                lines.set(i, newLine);
+//            }
+//        }
+//    }
 
     private static double getHorizontalAngleInDegree(Line2d l1) {
         return calcAngleDiffInDegree(getAngleInDegree(l1), 0);
     }
 
-    private static Line2d mergeLines(List<Line2d> lines) {
-        Line2d keep, remove;
-        //find the candidate line in lines
-        int idx = findClosestLineByAverageAngle(lines);
+//    private static Line2d mergeLines(List<Line2d> lines) {
+//        Line2d keep, remove;
+//        //find the candidate line in lines
+//        int idx = findClosestLineByAverageAngle(lines);
+//
+//        keep = lines.remove(idx);
+//
+//        for(int i = 0; i < lines.size(); i++){
+//            remove = lines.get(i);
+//            mergeLine(keep, remove);
+//        }
+//        return keep;
+//    }
 
-        keep = lines.remove(idx);
-
-        for(int i = 0; i < lines.size(); i++){
-            remove = lines.get(i);
-            mergeLine(keep, remove);
-        }
-        return keep;
-    }
-
-    private static int findClosestLineByAverageAngle(List<Line2d> lines) {
-        double avgAngle = 0;
-        for(Line2d l: lines)
-            avgAngle+= getHorizontalAngleInDegree(l);
-
-        avgAngle = avgAngle/lines.size();
-
-        int idx = 0;
-
-        double minAngleGap = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(idx)));
-
-        for(int i = 1; i < lines.size(); i++){
-            double t = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(i)));
-            if(t < minAngleGap){
-                minAngleGap = t;
-                idx = i;
-            }
-        }
-        return idx;
-    }
+//    private static int findClosestLineByAverageAngle(List<Line2d> lines) {
+//        double avgAngle = 0;
+//        for(Line2d l: lines)
+//            avgAngle+= getHorizontalAngleInDegree(l);
+//
+//        avgAngle = avgAngle/lines.size();
+//
+//        int idx = 0;
+//
+//        double minAngleGap = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(idx)));
+//
+//        for(int i = 1; i < lines.size(); i++){
+//            double t = Math.abs(avgAngle - getHorizontalAngleInDegree(lines.get(i)));
+//            if(t < minAngleGap){
+//                minAngleGap = t;
+//                idx = i;
+//            }
+//        }
+//        return idx;
+//    }
 
 
-    private static boolean isTheSameLineGroup(List<Line2d> lines, Line2d line, int lineDistanceThreshold, int lineGapThreshold) {
-        boolean gap = false;
-        for(Line2d l: lines){
-            if(!isOnTheSameLine(l, line, lineDistanceThreshold))
-                return false;
-            if(calculateLineGap(l, line) < lineGapThreshold)
-                gap = true;
-        }
-        return gap;
-    }
+//    private static boolean isTheSameLineGroup(List<Line2d> lines, Line2d line, int lineDistanceThreshold, int lineGapThreshold) {
+//        boolean gap = false;
+//        for(Line2d l: lines){
+//            if(!isOnTheSameLine(l, line, lineDistanceThreshold))
+//                return false;
+//            if(calculateLineGap(l, line) < lineGapThreshold)
+//                gap = true;
+//        }
+//        return gap;
+//    }
 
     private static float calculateLineGap(Line2d l1, Line2d l2) {
+
+        if(l1.isInLine(l2.begin, Constants.MERGE_MAX_LINE_DISTANCE)
+            || l1.isInLine(l2.end, Constants.MERGE_MAX_LINE_DISTANCE)
+            || l2.isInLine(l1.begin, Constants.MERGE_MAX_LINE_DISTANCE)
+            || l2.isInLine(l1.end, Constants.MERGE_MAX_LINE_DISTANCE))
+            return 0;
+
         float d1 = distance(l1.begin, l2.begin);
         float d2 = distance(l1.begin, l2.end);
         float d3 = distance(l1.end, l2.begin);
