@@ -128,7 +128,7 @@ public class App {
         double b1, b2, f1, f2;
         int n = lines.size();
         boolean addDummyLine = false;
-        int angle_step = 30;
+        int angle_step = 20;
         boolean detected = false;
         ArrayList<Integer> indices = new ArrayList<>();
 
@@ -194,8 +194,8 @@ public class App {
                         left = h.hoz1.begin.getX() < h.hoz2.begin.getX()? h.hoz1.begin : h.hoz2.begin;
                         right = h.hoz1.end.getX() > h.hoz2.end.getX()? h.hoz1.end: h.hoz2.end;
 
-//                        if((v.ver1.distanceToLine(left) < select_line_const*2 && v.ver2.distanceToLine(right) < select_line_const*2)
-//                            || (v.ver1.distanceToLine(right) < select_line_const*2 && v.ver2.distanceToLine(left) < select_line_const*2)){
+//                        if((v.ver1.distanceToLine(left) < select_line_const || v.ver2.distanceToLine(right) < select_line_const)
+//                            && (v.ver1.distanceToLine(right) < select_line_const || v.ver2.distanceToLine(left) < select_line_const)){
                             LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
                             lh.compute(width, height);
                             res.add(lh);
@@ -231,7 +231,7 @@ public class App {
         double min = res.get(0).gap;
         for(int i = 1; i < 5 && i < res.size(); i++){
             if(res.get(i).gap < min
-                    && res.get(i).area > res.get(idx).area*0.9){
+                    && res.get(i).area > res.get(idx).area*0.8){
                 min = res.get(i).gap;
                 idx = i;
             }
