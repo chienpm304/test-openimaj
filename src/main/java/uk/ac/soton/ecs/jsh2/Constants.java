@@ -35,4 +35,15 @@ public class Constants {
 
     public static final int REMOVE_AFTER_MERGE_THRESHOLD = 100;
 
+    /**
+     * Hints
+     * Exposure Adjust the amount of light in the image.
+     * Shadows Only adjust the brightness of the shadows, or darkest areas of the image.
+     * Highlight Only adjust the brightness of the highlights, or brightest areas of the image.
+     * Contrast Adjust the degree of difference between shadows and highlights.
+     * Structure Increase the amount of details in the image. Structure uses a unique algorithm to bring out the texture of objects throughout the photo, without affecting the edges of the objects.
+     * Temperature Adjust the balance between cool blue tones and warm yellow tones in the image.
+     * Tint Adjust the balance between green and magenta tones in the image.
+     */
+
 }

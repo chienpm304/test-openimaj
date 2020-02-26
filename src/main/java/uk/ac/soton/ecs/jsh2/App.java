@@ -42,7 +42,7 @@ public class App {
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
-                    detectWithCanny(file, fout);
+                    DetectByCanny.detectWithCanny(file, fout);
             }
     }
 
@@ -103,13 +103,6 @@ public class App {
 
         Tetragram bound = findBounds2(lines);
 
-//        ArrayList<Tetragram> res = new ArrayList<>();
-//
-//        for(LineHolder lh: holders)
-//            res.add(lh.getBounding2(width, height));
-//
-//        Collections.sort(res, Collections.reverseOrder());
-
         if (bound!=null) {
             drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
         }
@@ -117,6 +110,7 @@ public class App {
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
     }
+
     static Tetragram findBounds2(List<Line2d> lines) {
 
         ArrayList<LineHolder> verticals = new ArrayList<>();
