@@ -42,7 +42,8 @@ public class App {
         if (fin.exists() && fin.isDirectory())
             for (final File file : fin.listFiles()) {
                 if (file.isFile())
-                    DetectByCanny.detectWithCanny(file, fout);
+//                    DetectByCanny.detectWithCanny(file, fout);
+                    detectWithCanny(file, fout);
             }
     }
 
@@ -56,57 +57,29 @@ public class App {
     private static Tetragram detectWithCanny(File fin, File fout) throws IOException {
 
         MBFImage frame = ImageUtilities.readMBF(fin);
-        if(frame.getWidth() > frame.getHeight())
-            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getHeight();
-        else
-            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
-
-        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
-
-        if(scaleFactor!=1.0f) {
-            frame.processInplace(new ResizeProcessor(scaleFactor));
-        }
-
-        width = frame.getWidth();
-        height = frame.getHeight();
+        DetectByCanny.initSizeAndResizeImage(frame);
+        width = DetectByCanny.width;
+        height = DetectByCanny.height;
 
         System.out.println("processing: " + fin.getName() + "...");
-
-        GammaCorrection gc = new GammaCorrection(Constants.GAMMA);
-        for (int i = 0; i < frame.numBands(); i++) {
-            frame.getBand(i).processInplace(gc);
-        }
-
+        DetectByCanny.enhanceInputImage(frame);
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
-
-        FImage edges = applyCannyDetector(frame.flattenMax());
-
+        FImage edges = DetectByCanny.applyCannyDetector(frame.flattenMax());
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
-
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
-
         MBFImage tmp = frame.clone();
         drawLines(tmp,center, lines, RGBColour.GREEN, false);
         ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
-
-
         System.out.println("Before merge: " + lines.size());
-
         removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
-//        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE/2, Constants.MERGE_MAX_LINE_GAP/3);
-
         System.out.println("After merge: " + lines.size());
-
         MBFImage merged = frame.clone();
         drawLines(merged, center, lines, RGBColour.GREEN, true);
         ImageUtilities.write(merged, new File(fout.getAbsolutePath() + "/merged/" + fin.getName()));
-
         Tetragram bound = findBounds2(lines);
-
         if (bound!=null) {
             drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
         }
-
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
     }
@@ -352,7 +325,7 @@ public class App {
 //        return null;
 //    }
 
-    private static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
+    public static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
         double b1 = getHorizontalAngleInDegree(l1);
         double b2 = getHorizontalAngleInDegree(l2);
         return Math.abs(b1 - b2);
@@ -383,39 +356,13 @@ public class App {
 
         removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
 
-//        Collections.sort(lines, Comparator.comparingDouble(Line2d::calculateLength).reversed());
-
-        removeLineByMergingX(lines, maxLineDistance, maxLineGap);
-        removeLineByMergingY(lines, maxLineDistance, maxLineGap);
-//        removeNoiseX(lines, maxLineDistance, maxLineGap);
-//        removeNoiseY(lines, maxLineDistance, maxLineGap);
+        DetectByCanny.removeLineByMergingX(lines, maxLineDistance, maxLineGap);
+        DetectByCanny.removeLineByMergingY(lines, maxLineDistance, maxLineGap);
 
         removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
-//        removeLineNotMakeSquareAngle(lines);
     }
 
-//    private static void removeLineNotMakeSquareAngle(List<Line2d> lines) {
-//        int count;
-//        for(int i = 0; i < lines.size(); i++){
-//            count = 0;
-//            for(int j = 0; j < lines.size(); j++){
-//                if(i==j) continue;;
-//                double f1 = getHorizontalAngleInDegree(lines.get(i));
-//                double f2 = getHorizontalAngleInDegree(lines.get(j));
-//                if(Math.abs(f1-f2) >= 60){
-//                    count++;
-//                }
-//            }
-//            if(count < 2){
-//                lines.remove(i);
-//                i--;
-//            }
-//
-//        }
-//
-//    }
-
-    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+    public static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
         for(Line2d l: lines) sortByXAxis(l);
         lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
 
@@ -448,7 +395,7 @@ public class App {
         }
         System.out.println("");
     }
-    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+    public static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
         for(Line2d l: lines) sortByYAxis(l);
         lines.sort(Comparator.comparingDouble(Line2d::calculateLength).reversed());
 
@@ -482,7 +429,7 @@ public class App {
         System.out.println("");
     }
 
-    private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
+    public static void mergeLines2(List<Line2d> lines, int maxLineGap) {
         boolean mergeX = getHorizontalAngleInDegree(lines.get(0)) < 45;
         if(mergeX){
             for(Line2d l: lines) sortByXAxis(l);
@@ -563,7 +510,7 @@ public class App {
         return idx;
     }
 
-    private static boolean checkIfMayOnTheSameLine(List<Line2d> lines, Line2d line, int maxLineDistance) {
+    public static boolean checkIfMayOnTheSameLine(List<Line2d> lines, Line2d line, int maxLineDistance) {
         for(Line2d l: lines){
             if(!isOnTheSameLine(l, line, maxLineDistance))
                 return false;
@@ -633,7 +580,7 @@ public class App {
 //        }
 //    }
 
-    private static double getHorizontalAngleInDegree(Line2d l1) {
+    public static double getHorizontalAngleInDegree(Line2d l1) {
         return calcAngleDiffInDegree(getAngleInDegree(l1), 0);
     }
 
@@ -707,7 +654,7 @@ public class App {
                 && l1.isOnLine(l2.end, threshold)
                 && l2.isOnLine(l1.begin, threshold)
                 && l2.isOnLine(l1.end, threshold)
-                && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= Constants.MIN_ANGLE;
+                && calcHorizontalAngleDiff(l1, l2) <= Constants.MIN_ANGLE;
     }
 
 
@@ -755,7 +702,7 @@ public class App {
 
     }
 
-    private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
+    public static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
 
@@ -773,7 +720,7 @@ public class App {
         }
     }
 
-    private static void removeLineWithShorterThanThreshold(List<Line2d> lines, int threshold) {
+    public static void removeLineWithShorterThanThreshold(List<Line2d> lines, int threshold) {
         //remove
         for (int i = 0; i < lines.size(); i++) {
             Line2d l = lines.get(i);
@@ -799,7 +746,7 @@ public class App {
         }
     }
 
-    private static void mergeY(Line2d keep, Line2d remove) {
+    public static void mergeY(Line2d keep, Line2d remove) {
         // begin.x < end.x
         sortByYAxis(keep);
         sortByYAxis(remove);
@@ -842,7 +789,7 @@ public class App {
         }
     }
 
-    private static void mergeX(Line2d keep, Line2d remove) {
+    public static void mergeX(Line2d keep, Line2d remove) {
         sortByXAxis(keep);
         sortByXAxis(remove);
         float a = keep.end.getY() - keep.begin.getY();
@@ -984,7 +931,7 @@ public class App {
         for(Line2d l: lines) sortByYAxis(l);
     }
 
-    private static void sortByYAxis(Line2d line) {
+    public static void sortByYAxis(Line2d line) {
         if (line.begin.getY() > line.end.getY()) {
             Point2d tmp = line.begin;
             line.setBeginPoint(line.end);
@@ -992,7 +939,7 @@ public class App {
         }
     }
 
-    private static void sortByXAxis(Line2d line) {
+    public static void sortByXAxis(Line2d line) {
         if (line.begin.getX() > line.end.getX()) {
             Point2d tmp = line.begin;
             line.setBeginPoint(line.end);
