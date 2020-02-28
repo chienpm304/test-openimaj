@@ -18,26 +18,24 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static uk.ac.soton.ecs.jsh2.App.drawBound;
-import static uk.ac.soton.ecs.jsh2.App.drawLines;
-import static uk.ac.soton.ecs.jsh2.App.findBounds2;
+import static uk.ac.soton.ecs.jsh2.App.*;
 
 public class DetectByCanny {
 
     public static float _CANNY_LOW_THRESH = 0.05f;
-    public static float _CANNY_HIGH_THRESH = 0.15f;
-    public static float _CANNY_SIGMA = 3f;
+    public static float _CANNY_HIGH_THRESH = 0.25f;
+    public static float _CANNY_SIGMA = 5f;
 
     public static final double _HOUGH_LINE_RHO = 1;
     public static final double _HOUGH_LINE_THETA = Math.PI / 180d;;
 
-    public static int _HOUGH_LINE_MAX_LINE_GAP = 10;
-    public static int _HOUGH_LINE_THRESHOLD = 20;
+    public static int _HOUGH_LINE_MAX_LINE_GAP = 30;
+    public static int _HOUGH_LINE_THRESHOLD = 30;
     public static int _HOUGH_MIN_LINE_LENGTH = 20;
     public static int _HOUGH_MAX_NUM_LINE = 1000;
 
     public static final double _GAMMA = 2.2d;
-    public static final float _GAUSSIAN_BLUR_SIGMA = 2f;
+    public static final float _GAUSSIAN_BLUR_SIGMA = 2.5f;
 
 
     private static float scaleFactor;
@@ -52,22 +50,19 @@ public class DetectByCanny {
         System.out.println("processing: " + fin.getName() + "...");
 
         enhanceInputImage(frame);
-
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/enhanced/" + fin.getName()));
 
 
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
         FImage edges = applyCannyDetector(frame.flattenMax());
-
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
-        if(true) return null;
         List<Line2d> lines = getLinesUsingHoughTransformP(edges);
 
-//        MBFImage tmp = frame.clone();
-//        drawLines(tmp, center, lines, RGBColour.GREEN, false);
-//        ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
+        MBFImage tmp = frame.clone();
+        drawLines(tmp, center, lines, RGBColour.GREEN, false);
+        ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
 //
 //
 //        System.out.println("Before merge: " + lines.size());
@@ -96,15 +91,12 @@ public class DetectByCanny {
 
     private static void enhanceInputImage(MBFImage frame) {
         // process gamma correction
-//        GammaCorrection gc = new GammaCorrection(_GAMMA);
-//        Structure
-//        for (int i = 0; i < frame.numBands(); i++) {
-//            frame.getBand(i).processInplace(gc);
-//
-//        }
-//        frame.processInplace(ep);
+        GammaCorrection gc = new GammaCorrection(_GAMMA);
+        for (int i = 0; i < frame.numBands(); i++) {
+            frame.getBand(i).processInplace(gc);
 
-        //change image structure/sharpen
+        }
+        frame.processInplace(new FGaussianConvolve(_GAUSSIAN_BLUR_SIGMA));
     }
 
     private static void initSizeAndResizeImage(MBFImage frame) {
@@ -125,7 +117,6 @@ public class DetectByCanny {
 
     static FImage applyCannyDetector(FImage grey) {
         CannyEdgeDetector canny = new CannyEdgeDetector(_CANNY_LOW_THRESH, _CANNY_HIGH_THRESH, _CANNY_SIGMA);
-//        grey.processInplace(new FGaussianConvolve(_GAUSSIAN_BLUR_SIGMA));
         canny.processImage(grey);
         return grey;
     }
