@@ -1,9 +1,10 @@
 package uk.ac.soton.ecs.jsh2;
 
-import org.apache.commons.lang.mutable.MutableFloat;
 import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
+import org.openimaj.image.colour.RGBColour;
+import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.processing.algorithm.GammaCorrection;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
@@ -31,41 +32,58 @@ public class BoundDetector {
     private static int width;
     private static int height;
     private static float scaleFactor;
-
+    static File mfout;
+    static File mfin;
     public static Tetragram detectBound(File fin, File fout, boolean shuffle) throws IOException {
+        mfout = fout;
+        mfin = fin;
         MBFImage frame = ImageUtilities.readMBF(fin);
+
         initSizeAndResizeImage(frame);
+
         width = frame.getWidth();
         height = frame.getHeight();
 
+        Point2dImpl center = new Point2dImpl(width / 2, height / 2);
+
         enhanceInputImage(frame);
 
-        FImage edges = applyCannyDetector(frame.flattenMax());
+        FImage edges = applyCannyDetector(frame.flatten());
+        ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
+
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges, shuffle);
+        MBFImage tmp = frame.clone();
+        DrawUtils.drawLines(tmp, center, lines, RGBColour.GREEN, false);
+        ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
+        System.out.println("Before merge: " + lines.size());
 
         removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
+        MBFImage merged = frame.clone();
+        DrawUtils.drawLines(merged, center, lines, RGBColour.GREEN, true);
+        ImageUtilities.write(merged, new File(fout.getAbsolutePath() + "/merged/" + fin.getName()));
+
 
         Tetragram bound = findBounds2(lines);
-
-        if (bound == null) {
-            return Tetragram.createRectangleBounding(width, height);
+        if (bound!=null) {
+            DrawUtils.drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
         }
-        recoveryOriginalScale(bound, new MutableFloat(scaleFactor));
+        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
 
         return bound;
     }
 
-    public static void initSizeAndResizeImage(MBFImage frame) {
-        if(frame.getWidth() > frame.getHeight())
+    public static void initSizeAndResizeImage(MBFImage frame) throws IOException {
+        if (frame.getWidth() > frame.getHeight())
             scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getHeight();
         else
             scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
 
         scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
 
-        if(scaleFactor!=1.0f) {
+        if (scaleFactor != 1.0f) {
             frame.processInplace(new ResizeProcessor(scaleFactor));
+            ImageUtilities.write(frame, new File(mfout.getAbsolutePath() + "/new/" + mfin.getName()));
         }
 
         width = frame.getWidth();
@@ -83,20 +101,32 @@ public class BoundDetector {
     }
 
     private static void enhanceInputImage(MBFImage frame) {
-        // process gamma correction
-        GammaCorrection gc = new GammaCorrection(Constants.GAMMA_CORRECTION_VALUE);
-        for (int i = 0; i < frame.numBands(); i++) {
-//            gc.processImage(frame.getBand(i));
-            frame.getBand(i).processInplace(gc);
-        }
+//        frame = Transforms.RGB_TO_HSV(frame);
+//        float[][] H = frame.getBand(1).pixels;
+//
+//        for(int y = 0; y < frame.getBand(1).height; ++y) {
+//            for(int x = 0; x < frame.getBand(1).width; ++x) {
+//                H[y][x] = Math.min(0.5f + H[y][x], 1.0f);
+//            }
+//        }
+        applyGammaCorrection(frame);
+//        applyGaussianConvolution(frame);
+    }
 
+    private static void applyGaussianConvolution(MBFImage frame) {
         FGaussianConvolve gauss = new FGaussianConvolve(Constants.GAUSSIAN_BLUR_SIGMA);
         for (int i = 0; i < frame.numBands(); i++) {
 //            gauss.processImage(frame.getBand(i));
             frame.getBand(i).processInplace(gauss);
         }
+    }
 
-
+    private static void applyGammaCorrection(MBFImage frame) {
+        GammaCorrection gc = new GammaCorrection(Constants.GAMMA_CORRECTION_VALUE);
+        for (int i = 0; i < frame.numBands(); i++) {
+//            gc.processImage(frame.getBand(i));
+            frame.getBand(i).processInplace(gc);
+        }
     }
 
     private static FImage applyCannyDetector(FImage grey) {
