@@ -1,42 +1,42 @@
 package uk.ac.soton.ecs.jsh2;
 
+/**
+ * Package com.chienpm.library.detector
+ * Created by @chienpm on 20/02/2020
+ */
+
 public class Constants {
-    public static final float STANDARD_WIDTH = 720;
-    public static final int S_CHANNEL_ID = 1;
-    public static final String WINDOW_DIR = "D:/detect/input/AZdoc/new";
-    public static final String WINDOW_OUT_DIR = "D:/detect/input/AZdoc";
-    public static final String LINUX_DIR_IN = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/new";
-    public static String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
+    private static final float MAGIC_RATIO = (360f / 720f);
 
-    public static final float GAUSSIAN_BLUR_SIGMA = 2f;// min distance of 2 lines calculated by line.distanceToPoint
+    static final float STANDARD_WIDTH = 720 * MAGIC_RATIO;
 
-    public static final int MIN_ANGLE = 8;
+    static final int MIN_ANGLE = 8;
 
-    public static final int MERGE_MAX_LINE_DISTANCE = 30;// min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
-    public static final int MERGE_MAX_LINE_GAP = 100; //50is ok
-    public static final int MERGE_GAP_PER_LINE = 10;
-    public static final int BOUNDING_GAP_REMOVAL = 3;
+    static final int MERGE_MAX_LINE_DISTANCE = (int) (30 * MAGIC_RATIO);// min gap of 2 line's points = min(l1.begin -> l2.begin, l1.begin->l2.end, l1.end->l2.begin, l1.end -> l2.end)
+    static final int MERGE_MAX_LINE_GAP = (int) (100 * MAGIC_RATIO); //50is ok
 
-    //0.05 - 0.1 is ok (0.01 - 0.05)
-    public static float CANNY_LOW_THRESH = 0.03f;
-    public static float CANNY_HIGH_THRESH = 0.1f;
-    public static float CANNY_SIGMA = 3f;
+    static final int BOUNDING_GAP_REMOVAL = 3;
 
-    public static final double HOUGH_LINE_RHO = 1;
-    public static final double HOUGH_LINE_THETA = Math.PI / 180d;;
+    static final double HOUGH_LINE_RHO = 1;
+    static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
-    public static int HOUGH_LINE_MAX_LINE_GAP = 10;
-    public static int HOUGH_LINE_THRESHOLD = 20;
-    public static int HOUGH_MIN_LINE_LENGTH = 20;
-    public static int HOUGH_MAX_NUM_LINE = 1000;
+    static final int HOUGH_LINE_MAX_LINE_GAP = 10;
+    static final int HOUGH_LINE_THRESHOLD = (int) (20 * MAGIC_RATIO);
+    static final int HOUGH_MIN_LINE_LENGTH = (int) (20 * MAGIC_RATIO);
+    static final int HOUGH_MAX_NUM_LINE = 1000;
 
-    public static final double GAMMA = 2.2d;
+    static final float CANNY_LOW_THRESH = 0.05f;
+    static final float CANNY_HIGH_THRESH = 0.25f;
+    static final float CANNY_SIGMA = 5f;
 
-    public static final int REMOVE_AFTER_MERGE_THRESHOLD = 100;
+    static final double GAMMA_CORRECTION_VALUE = 2.2d;
+    static final float GAUSSIAN_BLUR_SIGMA = 2.5f;
+
+    static final int REMOVE_AFTER_MERGE_THRESHOLD = (int) (100 * MAGIC_RATIO);
 
     /**
-     * Hints
+     *  Hints
      * Exposure Adjust the amount of light in the image.
      * Shadows Only adjust the brightness of the shadows, or darkest areas of the image.
      * Highlight Only adjust the brightness of the highlights, or brightest areas of the image.

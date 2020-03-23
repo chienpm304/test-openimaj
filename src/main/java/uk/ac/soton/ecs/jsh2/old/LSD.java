@@ -1,5 +1,5 @@
-package uk.ac.soton.ecs.jsh2;
-import uk.ac.soton.ecs.jsh2.LsdUtils.*;
+package uk.ac.soton.ecs.jsh2.old;
+import uk.ac.soton.ecs.jsh2.old.LsdUtils.*;
 /*----------------------------------------------------------------------------
 
   LSD - Line Segment Detector on digital images
@@ -155,7 +155,6 @@ version.
  */
 /*----------------------------------------------------------------------------*/
 
-import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.math.geometry.line.Line2d;
@@ -166,7 +165,7 @@ import java.awt.Point;
 import java.util.Arrays;
 import java.util.List;
 
-import static uk.ac.soton.ecs.jsh2.LsdUtils.*;
+import static uk.ac.soton.ecs.jsh2.old.LsdUtils.*;
 
 public class LSD {
 	boolean NOTUSED = false;

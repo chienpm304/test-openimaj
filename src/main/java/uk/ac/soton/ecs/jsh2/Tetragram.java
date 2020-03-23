@@ -127,4 +127,15 @@ public class Tetragram implements Comparable<Tetragram> {
         Polygon thatPoly = new Polygon(o.toList());
         return Double.compare(thizPoly.calculateArea(), thatPoly.calculateArea());
     }
+
+    public static Tetragram createRectangleBounding(int width, int height) {
+        float[][] rect = new float[][]{
+                {0, 0},
+                {width-1, 0},
+                {width-1, height-1},
+                {0, height-1}
+        };
+
+        return new Tetragram(rect);
+    }
 }

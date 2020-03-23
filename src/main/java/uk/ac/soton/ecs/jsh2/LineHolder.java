@@ -4,12 +4,13 @@ import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
 import org.openimaj.math.geometry.shape.Polygon;
+import uk.ac.soton.ecs.jsh2.old.MyHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Math.min;
-import static uk.ac.soton.ecs.jsh2.App.distance;
+import static uk.ac.soton.ecs.jsh2.old.MyHelper.distance;
 
 public class LineHolder implements Comparable<LineHolder>{
 //    public List<Line2d> lines;
@@ -51,10 +52,10 @@ public class LineHolder implements Comparable<LineHolder>{
     }
 
     double calculateMinLineGap(Line2d l1, Line2d l2){
-        float d1 = distance(l1.begin, l2.begin);
-        float d2 = distance(l1.begin, l2.end);
-        float d3 = distance(l1.end, l2.begin);
-        float d4 = distance(l1.end, l2.end);
+        double d1 = distance(l1.begin, l2.begin);
+        double d2 = distance(l1.begin, l2.end);
+        double d3 = distance(l1.end, l2.begin);
+        double d4 = distance(l1.end, l2.end);
         d1 = Math.min(d1, d2);
         d3 = Math.min(d3, d4);
         return min(d1, d3);

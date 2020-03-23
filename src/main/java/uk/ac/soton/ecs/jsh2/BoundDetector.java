@@ -1,0 +1,490 @@
+package uk.ac.soton.ecs.jsh2;
+
+import org.apache.commons.lang.mutable.MutableFloat;
+import org.openimaj.image.FImage;
+import org.openimaj.image.ImageUtilities;
+import org.openimaj.image.MBFImage;
+import org.openimaj.image.processing.algorithm.GammaCorrection;
+import org.openimaj.image.processing.convolution.FGaussianConvolve;
+import org.openimaj.image.processing.edges.CannyEdgeDetector;
+import org.openimaj.image.processing.resize.ResizeProcessor;
+import org.openimaj.math.geometry.line.Line2d;
+import org.openimaj.math.geometry.point.Point2d;
+import org.openimaj.math.geometry.point.Point2dImpl;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+import static uk.ac.soton.ecs.jsh2.DetectorUtils.*;
+
+/**
+ * Package com.chienpm.library.detector
+ * Created by @chienpm on 28/02/2020
+ */
+
+public class BoundDetector {
+
+    private static int width;
+    private static int height;
+    private static float scaleFactor;
+
+    public static Tetragram detectBound(File fin, File fout, boolean shuffle) throws IOException {
+        MBFImage frame = ImageUtilities.readMBF(fin);
+        initSizeAndResizeImage(frame);
+        width = frame.getWidth();
+        height = frame.getHeight();
+
+        enhanceInputImage(frame);
+
+        FImage edges = applyCannyDetector(frame.flattenMax());
+
+        List<Line2d> lines = getLinesUsingHoughTransformP(edges, shuffle);
+
+        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
+
+        Tetragram bound = findBounds2(lines);
+
+        if (bound == null) {
+            return Tetragram.createRectangleBounding(width, height);
+        }
+        recoveryOriginalScale(bound, new MutableFloat(scaleFactor));
+
+        return bound;
+    }
+
+    public static void initSizeAndResizeImage(MBFImage frame) {
+        if(frame.getWidth() > frame.getHeight())
+            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getHeight();
+        else
+            scaleFactor = Constants.STANDARD_WIDTH / (float) frame.getWidth();
+
+        scaleFactor = scaleFactor > 1 ? 1.0f : scaleFactor;
+
+        if(scaleFactor!=1.0f) {
+            frame.processInplace(new ResizeProcessor(scaleFactor));
+        }
+
+        width = frame.getWidth();
+        height = frame.getHeight();
+    }
+
+    private static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+
+        removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
+
+        removeLineByMergingX(lines, maxLineDistance, maxLineGap);
+        removeLineByMergingY(lines, maxLineDistance, maxLineGap);
+
+        removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
+    }
+
+    private static void enhanceInputImage(MBFImage frame) {
+        // process gamma correction
+        GammaCorrection gc = new GammaCorrection(Constants.GAMMA_CORRECTION_VALUE);
+        for (int i = 0; i < frame.numBands(); i++) {
+//            gc.processImage(frame.getBand(i));
+            frame.getBand(i).processInplace(gc);
+        }
+
+        FGaussianConvolve gauss = new FGaussianConvolve(Constants.GAUSSIAN_BLUR_SIGMA);
+        for (int i = 0; i < frame.numBands(); i++) {
+//            gauss.processImage(frame.getBand(i));
+            frame.getBand(i).processInplace(gauss);
+        }
+
+
+    }
+
+    private static FImage applyCannyDetector(FImage grey) {
+        CannyEdgeDetector canny = new CannyEdgeDetector(Constants.CANNY_LOW_THRESH, Constants.CANNY_HIGH_THRESH, Constants.CANNY_SIGMA);
+        canny.processImage(grey);
+        return grey;
+    }
+
+    private static List<Line2d> getLinesUsingHoughTransformP(FImage image, boolean shuffle) {
+        List<Point2d> points = new ArrayList<>();
+        for (int i = 0; i < image.width; i++)
+            for (int j = 0; j < image.height; j++) {
+                if (image.getPixel(i, j) > 0.5f)
+                    points.add(new Point2dImpl(i, j));
+            }
+
+        if (shuffle)
+            Collections.shuffle(points);
+
+        HoughLinesP ht = new HoughLinesP(
+                points,
+                width,
+                height,
+                Constants.HOUGH_LINE_RHO,
+                Constants.HOUGH_LINE_THETA,
+                Constants.HOUGH_LINE_THRESHOLD,
+                Constants.HOUGH_LINE_MAX_LINE_GAP,
+                Constants.HOUGH_MIN_LINE_LENGTH,
+                Constants.HOUGH_MAX_NUM_LINE);
+        return ht.getLines();
+    }
+
+
+    private static Tetragram findBounds2(List<Line2d> lines) {
+
+        ArrayList<LineHolder> verticals = new ArrayList<>();
+        ArrayList<LineHolder> horizontals = new ArrayList<>();
+
+        LineHolder holder;
+
+        Line2d base1, base2;
+        double b1, b2;
+        int angle_step = 20;
+
+        // find vertical line (left, right)
+        while (verticals.isEmpty() && angle_step <= 45) {
+
+            for (int i = 0; i < lines.size() - 1; i++) {
+
+                base1 = lines.get(i);
+                b1 = getHorizontalAngleInDegree(base1);
+
+
+                for (int j = i + 1; j < lines.size(); j++) {
+                    base2 = lines.get(j);
+                    b2 = getHorizontalAngleInDegree(base2);
+
+                    if (Math.abs(b1 - b2) <= angle_step) {
+                        holder = new LineHolder();
+                        if (b1 > 45) {
+                            sortByYAxis(base1);
+                            sortByYAxis(base2);
+                            holder.ver1 = base1;
+                            holder.ver2 = base2;
+                            verticals.add(holder);
+                        } else {
+                            holder.hoz1 = base1;
+                            holder.hoz2 = base2;
+                            horizontals.add(holder);
+                        }
+                    }
+                }
+            }
+            angle_step += 5;
+        }
+
+        int select_line_const = 30;
+        double a1, a2, gapAngle;
+        // paring
+        ArrayList<LineHolder> res = new ArrayList<>();
+        Point2d top, bot;
+        while (res.isEmpty() && select_line_const < Math.min(width, height)) {
+            for (LineHolder v : verticals) {
+                sortByYAxis(v.ver1);
+                sortByYAxis(v.ver2);
+
+                top = v.ver1.begin.getY() < v.ver2.begin.getY() ? v.ver1.begin : v.ver2.begin;
+                bot = v.ver1.end.getY() > v.ver2.end.getY() ? v.ver1.end : v.ver2.end;
+
+
+                for (LineHolder h : horizontals) {
+                    a1 = DetectorUtils.getAngleInDegree(v.ver1);
+                    a2 = DetectorUtils.getAngleInDegree(h.hoz1);
+                    gapAngle = Math.abs(a1 - a2);
+
+                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
+                        // check horizontal lines are located at 2 separated area
+                        if ((h.hoz1.distanceToLine(top) < select_line_const && h.hoz2.distanceToLine(bot) < select_line_const)
+                                || (h.hoz1.distanceToLine(bot) < select_line_const && h.hoz2.distanceToLine(top) < select_line_const)) {
+
+                            DetectorUtils.sortByXAxis(h.hoz1);
+                            DetectorUtils.sortByXAxis(h.hoz2);
+
+                            LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
+                            lh.compute(width, height);
+                            res.add(lh);
+                        }
+                    }
+                }
+            }
+            select_line_const += 30;
+        }
+        System.out.println("Detected " + res.size() + " bounds");
+
+        if (res.isEmpty())
+            return null;
+
+        Collections.sort(res, new Comparator<LineHolder>() {
+            @Override
+            public int compare(LineHolder o1, LineHolder o2) {
+                return Double.compare(o2.area, o1.area); //reserved
+            }
+        });
+
+
+        int idx = 0;
+        double min = res.get(0).gap;
+        for (int i = 1; i < 5 && i < res.size(); i++) {
+            if (res.get(i).gap < min
+                    && res.get(i).area > res.get(idx).area * 0.8) {
+                min = res.get(i).gap;
+                idx = i;
+            }
+        }
+        return res.get(idx).tetragram;
+    }
+
+
+    private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
+        for (int i = 0; i < lines.size(); i++) {
+            Line2d l = lines.get(i);
+
+            if (l.begin.getX() < threshold && l.end.getX() < threshold //LEFT
+
+                    || l.begin.getY() < threshold && l.end.getY() < threshold //TOP
+
+                    || l.begin.getX() > width - threshold && l.end.getX() > width - threshold // RIGHT
+
+                    || l.begin.getY() > height - threshold && l.end.getY() > height - threshold) {
+
+                lines.remove(i);
+                i--;
+            }
+        }
+    }
+
+    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for (Line2d l : lines) sortByXAxis(l);
+        Collections.sort(lines, new Comparator<Line2d>() {
+            @Override
+            public int compare(Line2d o1, Line2d o2) {
+                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
+            }
+        });
+
+        Line2d l1, l2;
+        int beforeMerge, afterMerge;
+        List<Line2d> tmpLines = new ArrayList<>();
+        System.out.print("Merging: ");
+        for (int i = 0; i < lines.size(); i++) {
+            tmpLines.clear();
+            l1 = lines.get(i);
+            if (getHorizontalAngleInDegree(l1) >= 45)
+                continue;
+            tmpLines.add(l1);
+            for (int j = i + 1; j < lines.size(); j++) {
+                l2 = lines.get(j);
+                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)) {
+                    tmpLines.add(l2);
+                }
+            }
+            if (tmpLines.size() > 1) {
+                lines.removeAll(tmpLines);
+                System.out.print(" " + tmpLines.size());
+                beforeMerge = tmpLines.size();
+                mergeLines2(tmpLines, maxLineGap);
+                afterMerge = tmpLines.size();
+                lines.addAll(tmpLines);
+                if (afterMerge < beforeMerge)
+                    i--;
+            }
+        }
+        System.out.println();
+    }
+
+    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
+        for (Line2d l : lines) sortByYAxis(l);
+
+        Collections.sort(lines, new Comparator<Line2d>() {
+            @Override
+            public int compare(Line2d o1, Line2d o2) {
+                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
+            }
+        });
+
+        Line2d l1, l2;
+        int beforeMerge, afterMerge;
+        List<Line2d> tmpLines = new ArrayList<>();
+        System.out.print("Merging: ");
+        for (int i = 0; i < lines.size(); i++) {
+            tmpLines.clear();
+            l1 = lines.get(i);
+            if (getHorizontalAngleInDegree(l1) < 45)
+                continue;
+            tmpLines.add(l1);
+            for (int j = i + 1; j < lines.size(); j++) {
+                l2 = lines.get(j);
+                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)) {
+                    tmpLines.add(l2);
+                }
+            }
+            if (tmpLines.size() > 1) {
+                lines.removeAll(tmpLines);
+                System.out.print(" " + tmpLines.size());
+                beforeMerge = tmpLines.size();
+                mergeLines2(tmpLines, maxLineGap);
+                afterMerge = tmpLines.size();
+                lines.addAll(tmpLines);
+                if (afterMerge < beforeMerge)
+                    i--;
+            }
+        }
+        System.out.println();
+    }
+
+    private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
+        boolean mergeX = getHorizontalAngleInDegree(lines.get(0)) < 45;
+        if (mergeX) {
+            for (Line2d l : lines) sortByXAxis(l);
+        } else {
+            for (Line2d l : lines) sortByYAxis(l);
+        }
+
+        Collections.sort(lines, new Comparator<Line2d>() {
+            @Override
+            public int compare(Line2d o1, Line2d o2) {
+                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
+            }
+        });
+
+        Line2d l1, l2;
+        int idx;
+        for (int i = 0; i < lines.size(); i++) {
+            l1 = lines.get(i);
+            while ((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1) {
+                if (i >= lines.size() || idx >= lines.size())
+                    break;
+
+                l2 = lines.get(idx);
+
+                if (l1.calculateLength() < l2.calculateLength()) {
+                    Collections.swap(lines, i, idx);
+                    l1 = lines.get(i); // keep this
+                    l2 = lines.get(idx);
+                }
+
+                if (mergeX) mergeX(l1, l2);
+                else mergeY(l1, l2);
+
+                lines.remove(idx);
+
+            }
+        }
+    }
+
+    private static int findClosestLineByLineGap(List<Line2d> lines, Line2d line, int maxLineGap) {
+        double minGap = maxLineGap + 1;
+        int idx = -1;
+        Line2d l1;
+        for (int i = 0; i < lines.size(); i++) {
+            l1 = lines.get(i);
+            if (l1 != line) {
+                double gap = calculateLineGap(l1, line);
+                if (gap < minGap && gap < maxLineGap) {
+                    minGap = gap;
+                    idx = i;
+                }
+            }
+        }
+        return idx;
+    }
+
+    private static void removeLineWithShorterThanThreshold(List<Line2d> lines, int threshold) {
+        //remove
+        for (int i = 0; i < lines.size(); i++) {
+            Line2d l = lines.get(i);
+
+            if (l.calculateLength() < threshold) {
+                lines.remove(i);
+                i--;
+            }
+        }
+    }
+
+    private static void mergeY(Line2d keep, Line2d remove) {
+        // begin.x < end.x
+        sortByYAxis(keep);
+        sortByYAxis(remove);
+        float a = keep.end.getY() - keep.begin.getY();
+        float b = keep.end.getX() - keep.begin.getX();
+        float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
+
+        float newX, newY;
+
+        if (remove.begin.getY() < keep.begin.getY()) {
+            // expand top
+            newY = remove.begin.getY();
+            newX = (b * newY - c) / (a);
+
+            if (newX < 0) {
+                newX = 0;
+                newY = (a * newX + c) / (b);
+            } else if (newX > width) {
+                newX = width - 1;
+                newY = (b * newY - c) / (a);
+            }
+
+            keep.begin.setX(newX);
+            keep.begin.setY(newY);
+        } else if (remove.end.getY() > keep.end.getY()) {
+            // expand bottom
+            newY = remove.end.getY();
+            newX = (b * newY - c) / (a);
+
+            if (newX < 0) {
+                newX = 0;
+                newY = (a * newX + c) / (b);
+            } else if (newX > width) {
+                newX = width - 1;
+                newY = (b * newY - c) / (a);
+            }
+
+            keep.end.setX(newX);
+            keep.end.setY(newY);
+        }
+    }
+
+    private static void mergeX(Line2d keep, Line2d remove) {
+        sortByXAxis(keep);
+        sortByXAxis(remove);
+        float a = keep.end.getY() - keep.begin.getY();
+        float b = keep.end.getX() - keep.begin.getX();
+        float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
+
+        float newX, newY;
+
+        if (remove.begin.getX() < keep.begin.getX()) {
+            // expand left
+            newX = remove.begin.getX();
+            newY = (a * newX + c) / (b);
+
+            if (newY < 0) {
+                newY = 0;
+                newX = (b * newY - c) / (a);
+            } else if (newY > height) {
+                newY = height - 1;
+                newX = (b * newY - c) / (a);
+            }
+
+            keep.begin.setX(newX);
+            keep.begin.setY(newY);
+        } else if (remove.end.getX() > keep.end.getX()) {
+            // expand right
+            newX = remove.end.getX();
+            newY = (a * newX + c) / (b);
+
+            if (newY < 0) {
+                newY = 0;
+                newX = (b * newY - c) / (a);
+            } else if (newY > height) {
+                newY = height - 1;
+                newX = (b * newY - c) / (a);
+            }
+
+            keep.end.setX(newX);
+            keep.end.setY(newY);
+        }
+    }
+
+
+}

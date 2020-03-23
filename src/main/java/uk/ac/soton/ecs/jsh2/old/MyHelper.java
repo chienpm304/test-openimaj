@@ -1,4 +1,4 @@
-package uk.ac.soton.ecs.jsh2;
+package uk.ac.soton.ecs.jsh2.old;
 
 import Jama.Matrix;
 import org.openimaj.image.FImage;
@@ -8,6 +8,7 @@ import org.openimaj.image.colour.RGBColour;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
+import uk.ac.soton.ecs.jsh2.Tetragram;
 
 import java.util.ArrayList;
 import java.util.List;
