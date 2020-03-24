@@ -44,6 +44,16 @@ public class BoundDetector {
         width = frame.getWidth();
         height = frame.getHeight();
 
+        // Test convertAbs
+        ConvertAbsolute convert = new ConvertAbsolute(1.9f/255f, -90f/255f);
+        for(int i = 0; i < frame.numBands(); i++){
+            frame.getBand(i).processInplace(convert);
+        }
+        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/filter/" + fin.getName()));
+
+
+        if (1==1) {return null;}
+
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
         enhanceInputImage(frame);
