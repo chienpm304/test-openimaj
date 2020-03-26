@@ -1,8 +1,6 @@
 package uk.ac.soton.ecs.jsh2;
 
 import org.apache.commons.lang.mutable.MutableFloat;
-import org.openimaj.image.MBFImage;
-import org.openimaj.image.processing.resize.ResizeProcessor;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
@@ -56,13 +54,9 @@ public class DetectorUtils {
         }
     }
 
-    static double getHorizontalAngleInDegree(Line2d l1) {
-        return calcAngleDiffInDegree(getAngleInDegree(l1), 0);
-    }
-
     static float calculateLineGap(Line2d l1, Line2d l2) {
 
-        if(l1.isInLine(l2.begin, Constants.MERGE_MAX_LINE_DISTANCE)
+        if (l1.isInLine(l2.begin, Constants.MERGE_MAX_LINE_DISTANCE)
                 || l1.isInLine(l2.end, Constants.MERGE_MAX_LINE_DISTANCE)
                 || l2.isInLine(l1.begin, Constants.MERGE_MAX_LINE_DISTANCE)
                 || l2.isInLine(l1.end, Constants.MERGE_MAX_LINE_DISTANCE))
@@ -77,46 +71,52 @@ public class DetectorUtils {
         return min(d1, d3);
     }
 
-    static double getAngleInDegree(Line2d line) {
+    static double getUnsignedAngleInDegree(Line2d l1) {
+        return calcAngleDiffInDegree(getSignedAngleInDegree(l1), 0);
+    }
+
+    static double getSignedAngleInDegree(Line2d line) {
         return line.calculateHorizontalAngle() * 180 / PI;
     }
 
-    static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
-        double b1 = getHorizontalAngleInDegree(l1);
-        double b2 = getHorizontalAngleInDegree(l2);
-        return Math.abs(b1 - b2);
-    }
+//    static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
+//        double b1 = getHorizontalAngleInDegree(l1);
+//        double b2 = getHorizontalAngleInDegree(l2);
+//        return Math.abs(b1 - b2);
+//    }
 
-    static boolean checkIfMayOnTheSameLine(List<Line2d> lines, Line2d line, int maxLineDistance) {
-        for(Line2d l: lines){
-            if(!isOnTheSameLine(l, line, maxLineDistance))
-                return false;
-        }
-        return true;
-    }
-
-    private static boolean isOnTheSameLine(Line2d l1, Line2d l2, int threshold) {
-        return
-                l1.isOnLine(l2.begin, threshold)
-                        && l1.isOnLine(l2.end, threshold)
-                        && l2.isOnLine(l1.begin, threshold)
-                        && l2.isOnLine(l1.end, threshold)
-                        && calcAngleDiffInDegree(l1.calculateHorizontalAngle(), l2.calculateHorizontalAngle()) <= Constants.MIN_ANGLE;
-    }
-
-    private static double calcAngleDiffInDegree(double a1, double a2) {
+    public static double calcAngleDiffInDegree(double a1, double a2) {
         double gap = 0;
         if (a1 * a2 >= 0)
             return Math.abs(a1 - a2);
 
-        if (a1 < 0) gap = a2 - a1;
-        else gap = a1 - a2;
+        if (a1 < 0)
+            gap = a2 - a1;
+        else
+            gap = a1 - a2;
 
         if (gap >= 90)
             gap = 180 - gap;
 
         return gap;
     }
+
+    static boolean checkIfMayOnTheSameLine(List<Line2d> lines, Line2d line, int maxLineDistance, int minAngle) {
+        for (Line2d l : lines) {
+            if (!isOnTheSameLine(l, line, maxLineDistance, minAngle))
+                return false;
+        }
+        return true;
+    }
+
+    private static boolean isOnTheSameLine(Line2d l1, Line2d l2, int minDistance, int minAngle) {
+        return
+                (l1.isOnLine(l2.begin, minDistance) && l1.isOnLine(l2.end, minDistance))
+                        ||
+                        (l2.isOnLine(l1.begin, minDistance) && l2.isOnLine(l1.end, minDistance))
+                                && calcAngleDiffInDegree(getSignedAngleInDegree(l1), getSignedAngleInDegree(l2)) <= minAngle;
+    }
+
 
     static void sortByYAxis(Line2d line) {
         if (line.begin.getY() > line.end.getY()) {

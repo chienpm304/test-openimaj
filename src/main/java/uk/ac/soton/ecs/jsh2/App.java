@@ -18,6 +18,7 @@ public class App {
 
     public static void main(String[] args) throws IOException {
         testDetectBox();
+//        BoundDetector.detectBound(new File(WINDOW_DIR+"/20200302_152512.jpg"), new File(WINDOW_OUT_DIR), true);
     }
 
     private static void testDetectBox() throws IOException {
@@ -29,6 +30,7 @@ public class App {
                     BoundDetector.detectBound(file, fout, true);
             }
     }
+
 
     private static void testFilter(File fin, File fout) throws IOException{
         MBFImage frame = ImageUtilities.readMBF(fin);

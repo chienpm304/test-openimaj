@@ -115,7 +115,7 @@ public class Tetragram {//implements Comparable<Tetragram> {
      * @return a collection of lines in order: top, right, bottom, left
      */
     public List<Line2d> toLineList() {
-        ArrayList<Line2d> lines = new ArrayList<Line2d>();
+        ArrayList<Line2d> lines = new ArrayList<>();
         lines.add(new Line2d(tl, tr));
         lines.add(new Line2d(tr, br));
         lines.add(new Line2d(br, bl));

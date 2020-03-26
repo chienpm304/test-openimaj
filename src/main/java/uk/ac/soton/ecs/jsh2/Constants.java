@@ -7,6 +7,7 @@ package uk.ac.soton.ecs.jsh2;
 
 public class Constants {
 
+    public static final int ANGLE_DIFF_THRESHOLD = 30;
     private static final float MAGIC_RATIO = (360f / 720f);
 
     static final float STANDARD_WIDTH = 720 * MAGIC_RATIO;

@@ -35,6 +35,7 @@ public class BoundDetector {
     static File mfin;
 
     public static Tetragram detectBound(File fin, File fout, boolean shuffle) throws IOException {
+        System.out.println("processing " + fin.getName());
         mfout = fout;
         mfin = fin;
         MBFImage frame = ImageUtilities.readMBF(fin);
@@ -53,30 +54,45 @@ public class BoundDetector {
 
 
         List<Line2d> lines = getLinesUsingHoughTransformP(edges, shuffle);
-        MBFImage tmp = frame.clone();
-        DrawUtils.drawLines(tmp, center, lines, RGBColour.GREEN, false);
-        ImageUtilities.write(tmp, new File(fout.getAbsolutePath() + "/raw_detected/" + fin.getName()));
+        saveToFile(fin, fout, frame, center, lines, false, "/raw_detected/");
         System.out.println("Before merge: " + lines.size());
 
-        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP);
-        MBFImage merged = frame.clone();
-        DrawUtils.drawLines(merged, center, lines, RGBColour.GREEN, true);
-        ImageUtilities.write(merged, new File(fout.getAbsolutePath() + "/merged/" + fin.getName()));
+        sortLinesPointFieldByAngle(lines);
+
+        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP, Constants.MIN_ANGLE);
+        saveToFile(fin, fout, frame, center, lines, true, "/merged/");
+
+//        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP, Constants.MIN_ANGLE);
+//        saveToFile(fin, fout, frame, center, lines, true, "/merged2/");
 
 
 //        Tetragram bound = findBounds2(lines);
-        ArrayList<LineHolder> bounds = findBounds3(lines);
-
-        for (LineHolder lh: bounds) {
-            Tetragram bound = lh.tetragram;
-            if (bound != null) {
-                DrawUtils.drawLines(frame, center, bound.toLineList(), DrawUtils.getRandomColor(), false);
-//                DrawUtils.drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
+        List<LineHolder> bounds = findBounds3(lines);
+        if (!bounds.isEmpty()) {
+            for (LineHolder lh : bounds) {
+                Tetragram bound = lh.tetragram;
+                if (bound != null) {
+//                    DrawUtils.drawLines(frame, center, bound.toLineList(), DrawUtils.getRandomColor(), true);
+                    DrawUtils.drawBound(
+                            frame,
+                            center,
+                            bound.toLineList(),
+                            RGBColour.GREEN,
+                            RGBColour.YELLOW,
+                            RGBColour.BLUE,
+                            RGBColour.RED,
+                            true);
+                }
             }
-            ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         }
-
+        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
+    }
+
+    private static void saveToFile(File fin, File fout, MBFImage frame, Point2dImpl center, List<Line2d> lines, boolean isDrawAngle, String s) throws IOException {
+        MBFImage merged2 = frame.clone();
+        DrawUtils.drawLines(merged2, center, lines, RGBColour.GREEN, isDrawAngle);
+        ImageUtilities.write(merged2, new File(fout.getAbsolutePath() + s + fin.getName()));
     }
 
     public static void initSizeAndResizeImage(MBFImage frame) throws IOException {
@@ -96,14 +112,23 @@ public class BoundDetector {
         height = frame.getHeight();
     }
 
-    private static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-
+    private static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
         removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
 
-        removeLineByMergingX(lines, maxLineDistance, maxLineGap);
-        removeLineByMergingY(lines, maxLineDistance, maxLineGap);
+        removeLineByMergingX(lines, maxLineDistance, maxLineGap, minAngle);
+        removeLineByMergingY(lines, maxLineDistance, maxLineGap, Constants.MIN_ANGLE);
 
         removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
+    }
+
+    private static void sortLinesPointFieldByAngle(List<Line2d> lines) {
+        for (Line2d l : lines) {
+            if (getUnsignedAngleInDegree(l) < 45) {
+                sortByXAxis(l);
+            } else {
+                sortByYAxis(l);
+            }
+        }
     }
 
     private static void enhanceInputImage(MBFImage frame) {
@@ -136,7 +161,12 @@ public class BoundDetector {
     }
 
     private static FImage applyCannyDetector(FImage grey) {
-        CannyEdgeDetector canny = new CannyEdgeDetector(Constants.CANNY_LOW_THRESH, Constants.CANNY_HIGH_THRESH, Constants.CANNY_SIGMA);
+        CannyEdgeDetector canny =
+                new CannyEdgeDetector(
+                        Constants.CANNY_LOW_THRESH,
+                        Constants.CANNY_HIGH_THRESH,
+                        Constants.CANNY_SIGMA);
+
         canny.processImage(grey);
         return grey;
     }
@@ -165,7 +195,7 @@ public class BoundDetector {
         return ht.getLines();
     }
 
-    private static ArrayList<LineHolder> findBounds3(List<Line2d> lines) {
+    private static List<LineHolder> findBounds3(List<Line2d> lines) {
 
         ArrayList<LineHolder> verticals = new ArrayList<>();
         ArrayList<LineHolder> horizontals = new ArrayList<>();
@@ -177,28 +207,36 @@ public class BoundDetector {
         int angle_step = 20;
 
         // find vertical line (left, right)
-        while (verticals.isEmpty() && angle_step <= 45) {
+        while (verticals.isEmpty() && angle_step <= Constants.ANGLE_DIFF_THRESHOLD) {
 
             for (int i = 0; i < lines.size() - 1; i++) {
 
                 base1 = lines.get(i);
-                b1 = getHorizontalAngleInDegree(base1);
+                b1 = getUnsignedAngleInDegree(base1);
 
                 for (int j = i + 1; j < lines.size(); j++) {
                     base2 = lines.get(j);
-                    b2 = getHorizontalAngleInDegree(base2);
+                    b2 = getUnsignedAngleInDegree(base2);
 
                     if (Math.abs(b1 - b2) <= angle_step) {
                         holder = new LineHolder();
-                        if (b1 > 45) {
-                            sortByYAxis(base1);
-                            sortByYAxis(base2);
-                            holder.ver1 = base1;
-                            holder.ver2 = base2;
+                        if (b1 > 45) { // left, right
+                            if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
+                                holder.left = base1;
+                                holder.right = base2;
+                            } else {
+                                holder.left = base2;
+                                holder.right = base1;
+                            }
                             verticals.add(holder);
-                        } else {
-                            holder.hoz1 = base1;
-                            holder.hoz2 = base2;
+                        } else { // top, bottom
+                            if (base1.calculateCentroid().getY() < base2.calculateCentroid().getY()) {
+                                holder.top = base1;
+                                holder.bottom = base2;
+                            } else {
+                                holder.top = base2;
+                                holder.bottom = base1;
+                            }
                             horizontals.add(holder);
                         }
                     }
@@ -209,60 +247,35 @@ public class BoundDetector {
 
         int select_line_const = 30;
         double a1, a2, gapAngle;
-        double verticalDistance;
 
         // paring
         ArrayList<LineHolder> res = new ArrayList<>();
         Point2d top, bot;
         while (res.isEmpty() && select_line_const < Math.min(width, height)) {
             for (LineHolder v : verticals) {
-                sortByYAxis(v.ver1);
-                sortByYAxis(v.ver2);
-
-                top = v.ver1.begin.getY() < v.ver2.begin.getY() ? v.ver1.begin : v.ver2.begin;
-                bot = v.ver1.end.getY() > v.ver2.end.getY() ? v.ver1.end : v.ver2.end;
-
-                verticalDistance = v.ver1.distanceToLine(v.ver2.calculateCentroid());
+//                sortByYAxis(v.left);
+//                sortByYAxis(v.right);
 
                 for (LineHolder h : horizontals) {
-                    sortByXAxis(h.hoz1);
-                    sortByXAxis(h.hoz2);
-                    a1 = DetectorUtils.getAngleInDegree(v.ver1);
-                    a2 = DetectorUtils.getAngleInDegree(h.hoz1);
-                    gapAngle = Math.abs(a1 - a2);
+//                    sortByXAxis(h.top);
+//                    sortByXAxis(h.bottom);
+                    a1 = DetectorUtils.getSignedAngleInDegree(v.left);
+                    a2 = DetectorUtils.getSignedAngleInDegree(h.top);
+
+                    gapAngle = DetectorUtils.calcAngleDiffInDegree(a1, a2);// Math.abs(a1 - a2);
 
 
-                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
-                        // check horizontal lines are located at the same side of vertical lines
-                        if (v.ver1.distanceToLine(h.hoz1.begin) > verticalDistance &&
-                                v.ver1.distanceToLine(h.hoz1.end) > verticalDistance)
-                            continue;
-
-                        if (v.ver1.distanceToLine(h.hoz2.begin) > verticalDistance &&
-                                v.ver1.distanceToLine(h.hoz2.end) > verticalDistance)
-                            continue;
-
-                        if (v.ver2.distanceToLine(h.hoz1.begin) > verticalDistance &&
-                                v.ver2.distanceToLine(h.hoz1.end) > verticalDistance)
-                            continue;
-
-                        if (v.ver2.distanceToLine(h.hoz2.begin) > verticalDistance &&
-                                v.ver2.distanceToLine(h.hoz2.end) > verticalDistance)
-                            continue;
-
-
-                        // check horizontal lines are located at 2 separated area
-                        if ((h.hoz1.distanceToLine(top) < select_line_const && h.hoz2.distanceToLine(bot) < select_line_const)
-                                || (h.hoz1.distanceToLine(bot) < select_line_const && h.hoz2.distanceToLine(top) < select_line_const)) {
-
-                            DetectorUtils.sortByXAxis(h.hoz1);
-                            DetectorUtils.sortByXAxis(h.hoz2);
-
-                            LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
-                            lh.compute(width, height);
-                            if (lh.isSatisfyingShape())
-                                res.add(lh);
+//                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
+                    if (gapAngle >= 90 - angle_step) {// && gapAngle <= 90 + angle_step) {
+                        LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
+                        System.out.println("Checking " + lh.toString());
+                        lh.compute(width, height);
+                        if (lh.isSatisfyingShape()) {
+                            res.add(lh);
+                            System.out.println("Accepted");
                         }
+
+
                     }
                 }
             }
@@ -271,7 +284,7 @@ public class BoundDetector {
         System.out.println("Detected " + res.size() + " bounds");
 
         if (res.isEmpty())
-            return null;
+            return res;
 
         Collections.sort(res, new Comparator<LineHolder>() {
             @Override
@@ -280,7 +293,11 @@ public class BoundDetector {
             }
         });
 
-
+        /**
+         * Nếu có rất nhiều bounds thì chọn bound lớn nhất, it bound thì duyệt chọn bound nhỏ nhưng ngon
+         * hoặc là chọn 2 thằng lớn nhất ra so sánh gap
+         *
+         */
         int idx = 0;
         double min = res.get(0).gap;
 //        for (int i = 1; i < 5 && i < res.size(); i++) {
@@ -291,110 +308,6 @@ public class BoundDetector {
 //            }
 //        }
         return res;//.get(idx).tetragram;
-    }
-
-    private static Tetragram findBounds2(List<Line2d> lines) {
-
-        ArrayList<LineHolder> verticals = new ArrayList<>();
-        ArrayList<LineHolder> horizontals = new ArrayList<>();
-
-        LineHolder holder;
-
-        Line2d base1, base2;
-        double b1, b2;
-        int angle_step = 20;
-
-        // find vertical line (left, right)
-        while (verticals.isEmpty() && angle_step <= 45) {
-
-            for (int i = 0; i < lines.size() - 1; i++) {
-
-                base1 = lines.get(i);
-                b1 = getHorizontalAngleInDegree(base1);
-
-
-                for (int j = i + 1; j < lines.size(); j++) {
-                    base2 = lines.get(j);
-                    b2 = getHorizontalAngleInDegree(base2);
-
-                    if (Math.abs(b1 - b2) <= angle_step) {
-                        holder = new LineHolder();
-                        if (b1 > 45) {
-                            sortByYAxis(base1);
-                            sortByYAxis(base2);
-                            holder.ver1 = base1;
-                            holder.ver2 = base2;
-                            verticals.add(holder);
-                        } else {
-                            holder.hoz1 = base1;
-                            holder.hoz2 = base2;
-                            horizontals.add(holder);
-                        }
-                    }
-                }
-            }
-            angle_step += 5;
-        }
-
-        int select_line_const = 30;
-        double a1, a2, gapAngle;
-        // paring
-        ArrayList<LineHolder> res = new ArrayList<>();
-        Point2d top, bot;
-        while (res.isEmpty() && select_line_const < Math.min(width, height)) {
-            for (LineHolder v : verticals) {
-                sortByYAxis(v.ver1);
-                sortByYAxis(v.ver2);
-
-                top = v.ver1.begin.getY() < v.ver2.begin.getY() ? v.ver1.begin : v.ver2.begin;
-                bot = v.ver1.end.getY() > v.ver2.end.getY() ? v.ver1.end : v.ver2.end;
-
-
-                for (LineHolder h : horizontals) {
-                    a1 = DetectorUtils.getAngleInDegree(v.ver1);
-                    a2 = DetectorUtils.getAngleInDegree(h.hoz1);
-                    gapAngle = Math.abs(a1 - a2);
-
-                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
-                        // check horizontal lines are located at 2 separated area
-                        if ((h.hoz1.distanceToLine(top) < select_line_const && h.hoz2.distanceToLine(bot) < select_line_const)
-                                || (h.hoz1.distanceToLine(bot) < select_line_const && h.hoz2.distanceToLine(top) < select_line_const)) {
-
-                            DetectorUtils.sortByXAxis(h.hoz1);
-                            DetectorUtils.sortByXAxis(h.hoz2);
-
-                            LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
-                            lh.compute(width, height);
-                            res.add(lh);
-                        }
-                    }
-                }
-            }
-            select_line_const += 30;
-        }
-        System.out.println("Detected " + res.size() + " bounds");
-
-        if (res.isEmpty())
-            return null;
-
-        Collections.sort(res, new Comparator<LineHolder>() {
-            @Override
-            public int compare(LineHolder o1, LineHolder o2) {
-                return Double.compare(o2.area, o1.area); //reserved
-            }
-        });
-
-
-        int idx = 0;
-        double min = res.get(0).gap;
-        for (int i = 1; i < 5 && i < res.size(); i++) {
-            if (res.get(i).gap < min
-                    && res.get(i).area > res.get(idx).area * 0.8) {
-                min = res.get(i).gap;
-                idx = i;
-            }
-        }
-        return res.get(idx).tetragram;
     }
 
     private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
@@ -415,8 +328,8 @@ public class BoundDetector {
         }
     }
 
-    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-        for (Line2d l : lines) sortByXAxis(l);
+    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
+//        for (Line2d l : lines) sortByXAxis(l);
         Collections.sort(lines, new Comparator<Line2d>() {
             @Override
             public int compare(Line2d o1, Line2d o2) {
@@ -427,16 +340,16 @@ public class BoundDetector {
         Line2d l1, l2;
         int beforeMerge, afterMerge;
         List<Line2d> tmpLines = new ArrayList<>();
-        System.out.print("Merging: ");
+//        System.out.print("Merging: ");
         for (int i = 0; i < lines.size(); i++) {
             tmpLines.clear();
             l1 = lines.get(i);
-            if (getHorizontalAngleInDegree(l1) >= 45)
+            if (getUnsignedAngleInDegree(l1) >= 45)
                 continue;
             tmpLines.add(l1);
             for (int j = i + 1; j < lines.size(); j++) {
                 l2 = lines.get(j);
-                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)) {
+                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
                     tmpLines.add(l2);
                 }
             }
@@ -454,8 +367,8 @@ public class BoundDetector {
         System.out.println();
     }
 
-    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap) {
-        for (Line2d l : lines) sortByYAxis(l);
+    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
+//        for (Line2d l : lines) sortByYAxis(l);
 
         Collections.sort(lines, new Comparator<Line2d>() {
             @Override
@@ -467,16 +380,16 @@ public class BoundDetector {
         Line2d l1, l2;
         int beforeMerge, afterMerge;
         List<Line2d> tmpLines = new ArrayList<>();
-        System.out.print("Merging: ");
+//        System.out.print("Merging: ");
         for (int i = 0; i < lines.size(); i++) {
             tmpLines.clear();
             l1 = lines.get(i);
-            if (getHorizontalAngleInDegree(l1) < 45)
+            if (getUnsignedAngleInDegree(l1) < 45)
                 continue;
             tmpLines.add(l1);
             for (int j = i + 1; j < lines.size(); j++) {
                 l2 = lines.get(j);
-                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance)) {
+                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
                     tmpLines.add(l2);
                 }
             }
@@ -495,12 +408,12 @@ public class BoundDetector {
     }
 
     private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
-        boolean mergeX = getHorizontalAngleInDegree(lines.get(0)) < 45;
-        if (mergeX) {
-            for (Line2d l : lines) sortByXAxis(l);
-        } else {
-            for (Line2d l : lines) sortByYAxis(l);
-        }
+        boolean mergeX = getUnsignedAngleInDegree(lines.get(0)) < 45;
+//        if (mergeX) {
+//            for (Line2d l : lines) sortByXAxis(l);
+//        } else {
+//            for (Line2d l : lines) sortByYAxis(l);
+//        }
 
         Collections.sort(lines, new Comparator<Line2d>() {
             @Override
@@ -565,8 +478,8 @@ public class BoundDetector {
 
     private static void mergeY(Line2d keep, Line2d remove) {
         // begin.x < end.x
-        sortByYAxis(keep);
-        sortByYAxis(remove);
+//        sortByYAxis(keep);
+//        sortByYAxis(remove);
         float a = keep.end.getY() - keep.begin.getY();
         float b = keep.end.getX() - keep.begin.getX();
         float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
@@ -607,8 +520,8 @@ public class BoundDetector {
     }
 
     private static void mergeX(Line2d keep, Line2d remove) {
-        sortByXAxis(keep);
-        sortByXAxis(remove);
+//        sortByXAxis(keep);
+//        sortByXAxis(remove);
         float a = keep.end.getY() - keep.begin.getY();
         float b = keep.end.getX() - keep.begin.getX();
         float c = keep.end.getX() * keep.begin.getY() - keep.begin.getX() * keep.end.getY();
