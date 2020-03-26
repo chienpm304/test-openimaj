@@ -10,7 +10,7 @@ import java.util.Comparator;
 import java.util.List;
 
 
-public class Tetragram implements Comparable<Tetragram> {
+public class Tetragram {//implements Comparable<Tetragram> {
     private Point2d tl = new Point2dImpl(),
             tr = new Point2dImpl(),
             br = new Point2dImpl(),
@@ -111,8 +111,10 @@ public class Tetragram implements Comparable<Tetragram> {
         return new Tetragram(tmp);
     }
 
+    /**
+     * @return a collection of lines in order: top, right, bottom, left
+     */
     public List<Line2d> toLineList() {
-
         ArrayList<Line2d> lines = new ArrayList<Line2d>();
         lines.add(new Line2d(tl, tr));
         lines.add(new Line2d(tr, br));
@@ -121,12 +123,12 @@ public class Tetragram implements Comparable<Tetragram> {
         return lines;
     }
 
-    @Override
-    public int compareTo(Tetragram o) {
-        Polygon thizPoly = new Polygon(this.toList());
-        Polygon thatPoly = new Polygon(o.toList());
-        return Double.compare(thizPoly.calculateArea(), thatPoly.calculateArea());
-    }
+//    @Override
+//    public int compareTo(Tetragram o) {
+//        Polygon thizPoly = new Polygon(this.toList());
+//        Polygon thatPoly = new Polygon(o.toList());
+//        return Double.compare(thizPoly.calculateArea(), thatPoly.calculateArea());
+//    }
 
     public static Tetragram createRectangleBounding(int width, int height) {
         float[][] rect = new float[][]{

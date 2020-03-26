@@ -12,9 +12,9 @@ import java.util.List;
 import static java.lang.Math.min;
 import static uk.ac.soton.ecs.jsh2.old.MyHelper.distance;
 
-public class LineHolder implements Comparable<LineHolder>{
-//    public List<Line2d> lines;
-    public Line2d ver1 =null, ver2 =null, hoz1 =null, hoz2 =null;
+public class LineHolder implements Comparable<LineHolder> {
+    //    public List<Line2d> lines;
+    public Line2d ver1 = null, ver2 = null, hoz1 = null, hoz2 = null;
     public double rank = 0;
 
     public static int LEFT_INDEX = 0;
@@ -26,14 +26,14 @@ public class LineHolder implements Comparable<LineHolder>{
     private Line2d top, left, right, bottom;
     public double gap;
 
-    public LineHolder(Line2d ver1, Line2d hoz1, Line2d ver2, Line2d hoz2){
+    public LineHolder(Line2d ver1, Line2d hoz1, Line2d ver2, Line2d hoz2) {
         this.ver1 = ver1;
         this.ver2 = ver2;
         this.hoz1 = hoz1;
         this.hoz2 = hoz2;
     }
 
-    public LineHolder(){
+    public LineHolder() {
 //        lines = new ArrayList<>(4);
     }
 
@@ -45,13 +45,13 @@ public class LineHolder implements Comparable<LineHolder>{
 //    public
 
 
-    public void compute(int width, int height){
+    public void compute(int width, int height) {
         this.tetragram = getBounding2(width, height);
         this.area = new Polygon(tetragram.toList()).calculateArea();
-        this.gap = calculateMinLineGap(top, left) + calculateMinLineGap(top, right) + calculateMinLineGap(bottom, left) + calculateMinLineGap(bottom,right);
+        this.gap = calculateMinLineGap(top, left) + calculateMinLineGap(top, right) + calculateMinLineGap(bottom, left) + calculateMinLineGap(bottom, right);
     }
 
-    double calculateMinLineGap(Line2d l1, Line2d l2){
+    double calculateMinLineGap(Line2d l1, Line2d l2) {
         double d1 = distance(l1.begin, l2.begin);
         double d2 = distance(l1.begin, l2.end);
         double d3 = distance(l1.end, l2.begin);
@@ -77,75 +77,22 @@ public class LineHolder implements Comparable<LineHolder>{
                 '}';
     }
 
-    //    public Tetragram getBounding(int width, int height) {
-//        if(lines.size() < 4) return null;
-//        Line2d base1 =  lines.get(0);
-//        Line2d fit1 = lines.get(1);
-//        Line2d base2 = lines.get(2);
-//        Line2d fit2 = lines.get(3);
-//
-//        Line2d top, left, right, bottom;
-//        if(base1.calculateHorizontalAngle() < PI/4){
-//            //base1 and base2 are top and bottom
-//            if(base1.calculateCentroid().getY() < base2.calculateCentroid().getY()){
-//                top = base1;
-//                bottom = base2;
-//            }else{
-//                top = base2;
-//                bottom = base1;
-//            }
-//
-//            if(fit1.calculateCentroid().getX() < fit2.calculateCentroid().getX()){
-//                left = fit1;
-//                right = fit2;
-//            }else{
-//                left = fit2;
-//                right = fit1;
-//            }
-//
-//        }else{
-//            //fit1 and fit2 are top and bottom
-//            if(fit1.calculateCentroid().getY() < fit2.calculateCentroid().getY()){
-//                top = fit1;
-//                bottom = fit2;
-//            }else{
-//                top = fit2;
-//                bottom = fit1;
-//            }
-//
-//            if(base1.calculateCentroid().getX() < base2.calculateCentroid().getX()){
-//                left = base1;
-//                right = base2;
-//            }else{
-//                left = base2;
-//                right = base1;
-//            }
-//        }
-//
-//        Point2d topLeft = findLinesIntersection(top, left, width, height);
-//        Point2d topRight = findLinesIntersection(top, right, width, height);
-//        Point2d bottomRight = findLinesIntersection(bottom, right, width, height);
-//        Point2d bottomLeft = findLinesIntersection(bottom, left, width, height);
-//
-//        return new Tetragram(topLeft, topRight, bottomRight, bottomLeft);
-//    }
-
     public Tetragram getBounding2(int width, int height) {
 
 //        top, left, right, bottom;
 
-        if(hoz1.calculateCentroid().getY() < hoz2.calculateCentroid().getY()){
+        if (hoz1.calculateCentroid().getY() < hoz2.calculateCentroid().getY()) {
             top = hoz1;
             bottom = hoz2;
-        }else{
+        } else {
             top = hoz2;
             bottom = hoz1;
         }
 
-        if(ver1.calculateCentroid().getX() < ver2.calculateCentroid().getX()){
+        if (ver1.calculateCentroid().getX() < ver2.calculateCentroid().getX()) {
             left = ver1;
             right = ver2;
-        }else{
+        } else {
             left = ver2;
             right = ver1;
         }
@@ -174,10 +121,26 @@ public class LineHolder implements Comparable<LineHolder>{
 
     public List<Line2d> toList() {
         ArrayList<Line2d> lines = new ArrayList<>();
-        if(ver1!=null) lines.add(ver1);
-        if(ver2!=null) lines.add(ver2);
-        if(hoz1!=null) lines.add(hoz1);
-        if(hoz2!=null) lines.add(hoz2);
+        if (ver1 != null) lines.add(ver1);
+        if (ver2 != null) lines.add(ver2);
+        if (hoz1 != null) lines.add(hoz1);
+        if (hoz2 != null) lines.add(hoz2);
         return lines;
+    }
+
+    public boolean isSatisfyingShape() {
+        //check size
+        List<Line2d> lines = tetragram.toLineList(); // top, right, bot, left
+        double top = lines.get(0).calculateLength();
+        double right = lines.get(1).calculateLength();
+        double bottom = lines.get(2).calculateLength();
+        double left = lines.get(3).calculateLength();
+
+        if (top / bottom > 3f || bottom / top > 3f) return false;
+        if (left / right > 3f || right / left > 3f) return false;
+
+
+        //check angles
+        return true;
     }
 }

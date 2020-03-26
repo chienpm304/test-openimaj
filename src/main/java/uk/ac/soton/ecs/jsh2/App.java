@@ -1,5 +1,8 @@
 package uk.ac.soton.ecs.jsh2;
 
+import org.openimaj.image.ImageUtilities;
+import org.openimaj.image.MBFImage;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -27,4 +30,13 @@ public class App {
             }
     }
 
+    private static void testFilter(File fin, File fout) throws IOException{
+        MBFImage frame = ImageUtilities.readMBF(fin);
+        // Test convertAbs
+        ConvertAbsolute convert = new ConvertAbsolute(1.9f, -90f/255f);
+        for(int i = 0; i < frame.numBands(); i++){
+            frame.getBand(i).processInplace(convert);
+        }
+        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/filter/" + fin.getName()));
+    }
 }

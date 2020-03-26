@@ -4,7 +4,6 @@ import org.openimaj.image.FImage;
 import org.openimaj.image.ImageUtilities;
 import org.openimaj.image.MBFImage;
 import org.openimaj.image.colour.RGBColour;
-import org.openimaj.image.colour.Transforms;
 import org.openimaj.image.processing.algorithm.GammaCorrection;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
@@ -34,6 +33,7 @@ public class BoundDetector {
     private static float scaleFactor;
     static File mfout;
     static File mfin;
+
     public static Tetragram detectBound(File fin, File fout, boolean shuffle) throws IOException {
         mfout = fout;
         mfin = fin;
@@ -43,16 +43,6 @@ public class BoundDetector {
 
         width = frame.getWidth();
         height = frame.getHeight();
-
-        // Test convertAbs
-        ConvertAbsolute convert = new ConvertAbsolute(1.9f/255f, -90f/255f);
-        for(int i = 0; i < frame.numBands(); i++){
-            frame.getBand(i).processInplace(convert);
-        }
-        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/filter/" + fin.getName()));
-
-
-        if (1==1) {return null;}
 
         Point2dImpl center = new Point2dImpl(width / 2, height / 2);
 
@@ -74,13 +64,19 @@ public class BoundDetector {
         ImageUtilities.write(merged, new File(fout.getAbsolutePath() + "/merged/" + fin.getName()));
 
 
-        Tetragram bound = findBounds2(lines);
-        if (bound!=null) {
-            DrawUtils.drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
-        }
-        ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+//        Tetragram bound = findBounds2(lines);
+        ArrayList<LineHolder> bounds = findBounds3(lines);
 
-        return bound;
+        for (LineHolder lh: bounds) {
+            Tetragram bound = lh.tetragram;
+            if (bound != null) {
+                DrawUtils.drawLines(frame, center, bound.toLineList(), DrawUtils.getRandomColor(), false);
+//                DrawUtils.drawBound(frame, center, bound.toLineList(), RGBColour.GREEN, RGBColour.YELLOW);
+            }
+            ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
+        }
+
+        return null;
     }
 
     public static void initSizeAndResizeImage(MBFImage frame) throws IOException {
@@ -169,6 +165,133 @@ public class BoundDetector {
         return ht.getLines();
     }
 
+    private static ArrayList<LineHolder> findBounds3(List<Line2d> lines) {
+
+        ArrayList<LineHolder> verticals = new ArrayList<>();
+        ArrayList<LineHolder> horizontals = new ArrayList<>();
+
+        LineHolder holder;
+
+        Line2d base1, base2;
+        double b1, b2;
+        int angle_step = 20;
+
+        // find vertical line (left, right)
+        while (verticals.isEmpty() && angle_step <= 45) {
+
+            for (int i = 0; i < lines.size() - 1; i++) {
+
+                base1 = lines.get(i);
+                b1 = getHorizontalAngleInDegree(base1);
+
+                for (int j = i + 1; j < lines.size(); j++) {
+                    base2 = lines.get(j);
+                    b2 = getHorizontalAngleInDegree(base2);
+
+                    if (Math.abs(b1 - b2) <= angle_step) {
+                        holder = new LineHolder();
+                        if (b1 > 45) {
+                            sortByYAxis(base1);
+                            sortByYAxis(base2);
+                            holder.ver1 = base1;
+                            holder.ver2 = base2;
+                            verticals.add(holder);
+                        } else {
+                            holder.hoz1 = base1;
+                            holder.hoz2 = base2;
+                            horizontals.add(holder);
+                        }
+                    }
+                }
+            }
+            angle_step += 5;
+        }
+
+        int select_line_const = 30;
+        double a1, a2, gapAngle;
+        double verticalDistance;
+
+        // paring
+        ArrayList<LineHolder> res = new ArrayList<>();
+        Point2d top, bot;
+        while (res.isEmpty() && select_line_const < Math.min(width, height)) {
+            for (LineHolder v : verticals) {
+                sortByYAxis(v.ver1);
+                sortByYAxis(v.ver2);
+
+                top = v.ver1.begin.getY() < v.ver2.begin.getY() ? v.ver1.begin : v.ver2.begin;
+                bot = v.ver1.end.getY() > v.ver2.end.getY() ? v.ver1.end : v.ver2.end;
+
+                verticalDistance = v.ver1.distanceToLine(v.ver2.calculateCentroid());
+
+                for (LineHolder h : horizontals) {
+                    sortByXAxis(h.hoz1);
+                    sortByXAxis(h.hoz2);
+                    a1 = DetectorUtils.getAngleInDegree(v.ver1);
+                    a2 = DetectorUtils.getAngleInDegree(h.hoz1);
+                    gapAngle = Math.abs(a1 - a2);
+
+
+                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
+                        // check horizontal lines are located at the same side of vertical lines
+                        if (v.ver1.distanceToLine(h.hoz1.begin) > verticalDistance &&
+                                v.ver1.distanceToLine(h.hoz1.end) > verticalDistance)
+                            continue;
+
+                        if (v.ver1.distanceToLine(h.hoz2.begin) > verticalDistance &&
+                                v.ver1.distanceToLine(h.hoz2.end) > verticalDistance)
+                            continue;
+
+                        if (v.ver2.distanceToLine(h.hoz1.begin) > verticalDistance &&
+                                v.ver2.distanceToLine(h.hoz1.end) > verticalDistance)
+                            continue;
+
+                        if (v.ver2.distanceToLine(h.hoz2.begin) > verticalDistance &&
+                                v.ver2.distanceToLine(h.hoz2.end) > verticalDistance)
+                            continue;
+
+
+                        // check horizontal lines are located at 2 separated area
+                        if ((h.hoz1.distanceToLine(top) < select_line_const && h.hoz2.distanceToLine(bot) < select_line_const)
+                                || (h.hoz1.distanceToLine(bot) < select_line_const && h.hoz2.distanceToLine(top) < select_line_const)) {
+
+                            DetectorUtils.sortByXAxis(h.hoz1);
+                            DetectorUtils.sortByXAxis(h.hoz2);
+
+                            LineHolder lh = new LineHolder(v.ver1, h.hoz1, v.ver2, h.hoz2);
+                            lh.compute(width, height);
+                            if (lh.isSatisfyingShape())
+                                res.add(lh);
+                        }
+                    }
+                }
+            }
+            select_line_const += 30;
+        }
+        System.out.println("Detected " + res.size() + " bounds");
+
+        if (res.isEmpty())
+            return null;
+
+        Collections.sort(res, new Comparator<LineHolder>() {
+            @Override
+            public int compare(LineHolder o1, LineHolder o2) {
+                return Double.compare(o2.area, o1.area); //reserved
+            }
+        });
+
+
+        int idx = 0;
+        double min = res.get(0).gap;
+//        for (int i = 1; i < 5 && i < res.size(); i++) {
+//            if (res.get(i).gap < min
+//                    && res.get(i).area > res.get(idx).area * 0.8) {
+//                min = res.get(i).gap;
+//                idx = i;
+//            }
+//        }
+        return res;//.get(idx).tetragram;
+    }
 
     private static Tetragram findBounds2(List<Line2d> lines) {
 
@@ -273,7 +396,6 @@ public class BoundDetector {
         }
         return res.get(idx).tetragram;
     }
-
 
     private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
         for (int i = 0; i < lines.size(); i++) {

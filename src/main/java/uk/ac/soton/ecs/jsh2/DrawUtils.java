@@ -69,4 +69,8 @@ public class DrawUtils {
                 RGBColour.RED);
 
     }
+
+    public static Float[] getRandomColor() {
+        return new Float[0];
+    }
 }
