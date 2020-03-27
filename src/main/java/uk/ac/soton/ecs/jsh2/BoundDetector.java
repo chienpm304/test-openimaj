@@ -62,17 +62,12 @@ public class BoundDetector {
         removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP, Constants.MIN_ANGLE);
         saveToFile(fin, fout, frame, center, lines, true, "/merged/");
 
-//        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP, Constants.MIN_ANGLE);
-//        saveToFile(fin, fout, frame, center, lines, true, "/merged2/");
-
-
 //        Tetragram bound = findBounds2(lines);
         List<LineHolder> bounds = findBounds3(lines);
         if (!bounds.isEmpty()) {
             for (LineHolder lh : bounds) {
                 Tetragram bound = lh.tetragram;
                 if (bound != null) {
-//                    DrawUtils.drawLines(frame, center, bound.toLineList(), DrawUtils.getRandomColor(), true);
                     DrawUtils.drawBound(
                             frame,
                             center,
@@ -113,11 +108,8 @@ public class BoundDetector {
     }
 
     private static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-        removeLinesNearbyBounding(lines, Constants.BOUNDING_GAP_REMOVAL);
-
         removeLineByMergingX(lines, maxLineDistance, maxLineGap, minAngle);
-        removeLineByMergingY(lines, maxLineDistance, maxLineGap, Constants.MIN_ANGLE);
-
+        removeLineByMergingY(lines, maxLineDistance, maxLineGap, minAngle);
         removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
     }
 
@@ -199,6 +191,8 @@ public class BoundDetector {
 
         ArrayList<LineHolder> verticals = new ArrayList<>();
         ArrayList<LineHolder> horizontals = new ArrayList<>();
+        // paring
+        ArrayList<LineHolder> res = new ArrayList<>();
 
         LineHolder holder;
 
@@ -248,25 +242,14 @@ public class BoundDetector {
         int select_line_const = 30;
         double a1, a2, gapAngle;
 
-        // paring
-        ArrayList<LineHolder> res = new ArrayList<>();
-        Point2d top, bot;
-        while (res.isEmpty() && select_line_const < Math.min(width, height)) {
             for (LineHolder v : verticals) {
-//                sortByYAxis(v.left);
-//                sortByYAxis(v.right);
-
                 for (LineHolder h : horizontals) {
-//                    sortByXAxis(h.top);
-//                    sortByXAxis(h.bottom);
                     a1 = DetectorUtils.getSignedAngleInDegree(v.left);
                     a2 = DetectorUtils.getSignedAngleInDegree(h.top);
 
-                    gapAngle = DetectorUtils.calcAngleDiffInDegree(a1, a2);// Math.abs(a1 - a2);
+                    gapAngle = DetectorUtils.calcAngleDiffInDegree(a1, a2);
 
-
-//                    if (gapAngle >= 90 - angle_step && gapAngle <= 90 + angle_step) {
-                    if (gapAngle >= 90 - angle_step) {// && gapAngle <= 90 + angle_step) {
+                    if (gapAngle >= 90 - angle_step) {
                         LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
                         System.out.println("Checking " + lh.toString());
                         lh.compute(width, height);
@@ -274,13 +257,9 @@ public class BoundDetector {
                             res.add(lh);
                             System.out.println("Accepted");
                         }
-
-
                     }
                 }
             }
-            select_line_const += 30;
-        }
         System.out.println("Detected " + res.size() + " bounds");
 
         if (res.isEmpty())
@@ -329,7 +308,6 @@ public class BoundDetector {
     }
 
     private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-//        for (Line2d l : lines) sortByXAxis(l);
         Collections.sort(lines, new Comparator<Line2d>() {
             @Override
             public int compare(Line2d o1, Line2d o2) {
@@ -368,9 +346,7 @@ public class BoundDetector {
     }
 
     private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-//        for (Line2d l : lines) sortByYAxis(l);
-
-        Collections.sort(lines, new Comparator<Line2d>() {
+        lines.sort(new Comparator<Line2d>() {
             @Override
             public int compare(Line2d o1, Line2d o2) {
                 return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
@@ -409,11 +385,6 @@ public class BoundDetector {
 
     private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
         boolean mergeX = getUnsignedAngleInDegree(lines.get(0)) < 45;
-//        if (mergeX) {
-//            for (Line2d l : lines) sortByXAxis(l);
-//        } else {
-//            for (Line2d l : lines) sortByYAxis(l);
-//        }
 
         Collections.sort(lines, new Comparator<Line2d>() {
             @Override
