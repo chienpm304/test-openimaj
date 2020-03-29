@@ -8,6 +8,7 @@ import org.openimaj.image.processing.algorithm.GammaCorrection;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
+import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
@@ -79,6 +80,11 @@ public class BoundDetector {
                             true);
                 }
             }
+            frame.drawText(bounds.size() + "", (int) center.getX(),
+                    (int) center.getY(),
+                    HersheyFont.ROMAN_DUPLEX,
+                    40,
+                    RGBColour.RED);
         }
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
