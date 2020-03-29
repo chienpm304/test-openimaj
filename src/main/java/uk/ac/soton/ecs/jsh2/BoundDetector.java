@@ -28,6 +28,7 @@ import static uk.ac.soton.ecs.jsh2.DetectorUtils.*;
 
 public class BoundDetector {
 
+    public static final int MAGIC_LOOP_TIMES = 3;
     private static int width;
     private static int height;
     private static float scaleFactor;
@@ -59,10 +60,9 @@ public class BoundDetector {
 
         sortLinesPointFieldByAngle(lines);
 
-        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP, Constants.MIN_ANGLE);
+        removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP - 20, Constants.MIN_ANGLE);
         saveToFile(fin, fout, frame, center, lines, true, "/merged/");
 
-//        Tetragram bound = findBounds2(lines);
         List<LineHolder> bounds = findBounds3(lines);
         if (!bounds.isEmpty()) {
             for (LineHolder lh : bounds) {
@@ -108,9 +108,27 @@ public class BoundDetector {
     }
 
     private static void removeNoiseLines(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-        removeLineByMergingX(lines, maxLineDistance, maxLineGap, minAngle);
-        removeLineByMergingY(lines, maxLineDistance, maxLineGap, minAngle);
-        removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
+//        removeLineByMergingX(lines, maxLineDistance, maxLineGap, minAngle);
+//        removeLineByMergingY(lines, maxLineDistance, maxLineGap, minAngle);
+//        removeLineWithShorterThanThreshold(lines, Constants.REMOVE_AFTER_MERGE_THRESHOLD);
+        List<Line2d> hozLines = new ArrayList<>();
+        List<Line2d> verLines = new ArrayList<>();
+        for (Line2d l : lines)
+            if (DetectorUtils.getUnsignedAngleInDegree(l) <= 45)
+                hozLines.add(l);
+            else
+                verLines.add(l);
+
+        hozLines.sort(Comparator.comparingDouble(o -> o.begin.getX()));
+        verLines.sort(Comparator.comparingDouble(o -> o.begin.getY()));
+
+        removeLineByMerging(hozLines, maxLineDistance, maxLineGap, minAngle);
+        removeLineByMerging(verLines, maxLineDistance, maxLineGap, minAngle);
+        lines.clear();
+        lines.addAll(hozLines);
+        lines.addAll(verLines);
+
+        removeLineWithShorterThanThreshold(lines, 30);
     }
 
     private static void sortLinesPointFieldByAngle(List<Line2d> lines) {
@@ -242,24 +260,24 @@ public class BoundDetector {
         int select_line_const = 30;
         double a1, a2, gapAngle;
 
-            for (LineHolder v : verticals) {
-                for (LineHolder h : horizontals) {
-                    a1 = DetectorUtils.getSignedAngleInDegree(v.left);
-                    a2 = DetectorUtils.getSignedAngleInDegree(h.top);
+        for (LineHolder v : verticals) {
+            for (LineHolder h : horizontals) {
+                a1 = DetectorUtils.getSignedAngleInDegree(v.left);
+                a2 = DetectorUtils.getSignedAngleInDegree(h.top);
 
-                    gapAngle = DetectorUtils.calcAngleDiffInDegree(a1, a2);
+                gapAngle = DetectorUtils.calcAngleDiffInDegree(a1, a2);
 
-                    if (gapAngle >= 90 - angle_step) {
-                        LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
-                        System.out.println("Checking " + lh.toString());
-                        lh.compute(width, height);
-                        if (lh.isSatisfyingShape()) {
-                            res.add(lh);
-                            System.out.println("Accepted");
-                        }
+                if (gapAngle >= 90 - angle_step) {
+                    LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
+                    System.out.println("Checking " + lh.toString());
+                    lh.compute(width, height);
+                    if (lh.isSatisfyingShape()) {
+                        res.add(lh);
+                        System.out.println("Accepted");
                     }
                 }
             }
+        }
         System.out.println("Detected " + res.size() + " bounds");
 
         if (res.isEmpty())
@@ -307,13 +325,7 @@ public class BoundDetector {
         }
     }
 
-    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-        Collections.sort(lines, new Comparator<Line2d>() {
-            @Override
-            public int compare(Line2d o1, Line2d o2) {
-                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
-            }
-        });
+    private static void removeLineByMerging(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
 
         Line2d l1, l2;
         int beforeMerge, afterMerge;
@@ -322,19 +334,21 @@ public class BoundDetector {
         for (int i = 0; i < lines.size(); i++) {
             tmpLines.clear();
             l1 = lines.get(i);
-            if (getUnsignedAngleInDegree(l1) >= 45)
-                continue;
             tmpLines.add(l1);
-            for (int j = i + 1; j < lines.size(); j++) {
-                l2 = lines.get(j);
-                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
-                    tmpLines.add(l2);
+            for (int k = 0; k < MAGIC_LOOP_TIMES; k++) {
+                for (int j = i + 1; j < lines.size(); j++) {
+                    l2 = lines.get(j);
+                    if (!tmpLines.contains(l2)
+                            && checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
+                        tmpLines.add(l2);
+                    }
                 }
             }
             if (tmpLines.size() > 1) {
                 lines.removeAll(tmpLines);
                 System.out.print(" " + tmpLines.size());
                 beforeMerge = tmpLines.size();
+
                 mergeLines2(tmpLines, maxLineGap);
                 afterMerge = tmpLines.size();
                 lines.addAll(tmpLines);
@@ -345,43 +359,81 @@ public class BoundDetector {
         System.out.println();
     }
 
-    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
-        lines.sort(new Comparator<Line2d>() {
-            @Override
-            public int compare(Line2d o1, Line2d o2) {
-                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
-            }
-        });
+//    private static void removeLineByMergingX(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
+//        Collections.sort(lines, new Comparator<Line2d>() {
+//            @Override
+//            public int compare(Line2d o1, Line2d o2) {
+//                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
+//            }
+//        });
+//
+//        Line2d l1, l2;
+//        int beforeMerge, afterMerge;
+//        List<Line2d> tmpLines = new ArrayList<>();
+////        System.out.print("Merging: ");
+//        for (int i = 0; i < lines.size(); i++) {
+//            tmpLines.clear();
+//            l1 = lines.get(i);
+//            if (getUnsignedAngleInDegree(l1) >= 45)
+//                continue;
+//            tmpLines.add(l1);
+//            for (int j = i + 1; j < lines.size(); j++) {
+//                l2 = lines.get(j);
+//                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
+//                    tmpLines.add(l2);
+//                }
+//            }
+//            if (tmpLines.size() > 1) {
+//                lines.removeAll(tmpLines);
+//                System.out.print(" " + tmpLines.size());
+//                beforeMerge = tmpLines.size();
+//                mergeLines2(tmpLines, maxLineGap);
+//                afterMerge = tmpLines.size();
+//                lines.addAll(tmpLines);
+//                if (afterMerge < beforeMerge)
+//                    i--;
+//            }
+//        }
+//        System.out.println();
+//    }
 
-        Line2d l1, l2;
-        int beforeMerge, afterMerge;
-        List<Line2d> tmpLines = new ArrayList<>();
-//        System.out.print("Merging: ");
-        for (int i = 0; i < lines.size(); i++) {
-            tmpLines.clear();
-            l1 = lines.get(i);
-            if (getUnsignedAngleInDegree(l1) < 45)
-                continue;
-            tmpLines.add(l1);
-            for (int j = i + 1; j < lines.size(); j++) {
-                l2 = lines.get(j);
-                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
-                    tmpLines.add(l2);
-                }
-            }
-            if (tmpLines.size() > 1) {
-                lines.removeAll(tmpLines);
-                System.out.print(" " + tmpLines.size());
-                beforeMerge = tmpLines.size();
-                mergeLines2(tmpLines, maxLineGap);
-                afterMerge = tmpLines.size();
-                lines.addAll(tmpLines);
-                if (afterMerge < beforeMerge)
-                    i--;
-            }
-        }
-        System.out.println();
-    }
+//    private static void removeLineByMergingY(List<Line2d> lines, int maxLineDistance, int maxLineGap, int minAngle) {
+//        lines.sort(new Comparator<Line2d>() {
+//            @Override
+//            public int compare(Line2d o1, Line2d o2) {
+//                return Double.compare(o2.calculateLength(), o1.calculateLength()); //reserved
+//            }
+//        });
+//
+//        Line2d l1, l2;
+//        int beforeMerge, afterMerge;
+//        List<Line2d> tmpLines = new ArrayList<>();
+////        System.out.print("Merging: ");
+//        for (int i = 0; i < lines.size(); i++) {
+//            tmpLines.clear();
+//            l1 = lines.get(i);
+//            if (getUnsignedAngleInDegree(l1) < 45)
+//                continue;
+//            tmpLines.add(l1);
+//            for (int j = i + 1; j < lines.size(); j++) {
+//                l2 = lines.get(j);
+//                if (checkIfMayOnTheSameLine(tmpLines, l2, maxLineDistance, minAngle)) {
+//                    tmpLines.add(l2);
+//                }
+//            }
+//            if (tmpLines.size() > 1) {
+//                lines.removeAll(tmpLines);
+//                System.out.print(" " + tmpLines.size());
+//                beforeMerge = tmpLines.size();
+//                mergeLines2(tmpLines, maxLineGap);
+//                afterMerge = tmpLines.size();
+//                lines.addAll(tmpLines);
+//                if (afterMerge < beforeMerge)
+//                    i--;
+//            }
+//        }
+//        System.out.println();
+//    }
 
     private static void mergeLines2(List<Line2d> lines, int maxLineGap) {
         boolean mergeX = getUnsignedAngleInDegree(lines.get(0)) < 45;
@@ -395,25 +447,28 @@ public class BoundDetector {
 
         Line2d l1, l2;
         int idx;
-        for (int i = 0; i < lines.size(); i++) {
-            l1 = lines.get(i);
-            while ((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1) {
-                if (i >= lines.size() || idx >= lines.size())
-                    break;
 
-                l2 = lines.get(idx);
+        for (int k = 0; k < MAGIC_LOOP_TIMES; k++) {
+            for (int i = 0; i < lines.size(); i++) {
+                l1 = lines.get(i);
+                while ((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1) {
+                    if (i >= lines.size() || idx >= lines.size())
+                        break;
 
-                if (l1.calculateLength() < l2.calculateLength()) {
-                    Collections.swap(lines, i, idx);
-                    l1 = lines.get(i); // keep this
                     l2 = lines.get(idx);
+
+                    if (l1.calculateLength() < l2.calculateLength()) {
+                        Collections.swap(lines, i, idx);
+                        l1 = lines.get(i); // keep l1
+                        l2 = lines.get(idx); // remove l2
+                    }
+
+                    if (mergeX) mergeX(l1, l2);
+                    else mergeY(l1, l2);
+
+                    lines.remove(idx);
+
                 }
-
-                if (mergeX) mergeX(l1, l2);
-                else mergeY(l1, l2);
-
-                lines.remove(idx);
-
             }
         }
     }
