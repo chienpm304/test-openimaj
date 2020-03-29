@@ -216,92 +216,86 @@ public class BoundDetector {
 
         Line2d base1, base2;
         double b1, b2;
-        int angle_step = 20;
+        for (int i = 0; i < lines.size() - 1; i++) {
 
-        // find vertical line (left, right)
-        while (res.isEmpty() && angle_step <= Constants.ANGLE_DIFF_THRESHOLD+15) {
+            base1 = lines.get(i);
+            b1 = getUnsignedAngleInDegree(base1);
 
-            for (int i = 0; i < lines.size() - 1; i++) {
+            for (int j = i + 1; j < lines.size(); j++) {
+                base2 = lines.get(j);
+                b2 = getUnsignedAngleInDegree(base2);
 
-                base1 = lines.get(i);
-                b1 = getUnsignedAngleInDegree(base1);
-
-                for (int j = i + 1; j < lines.size(); j++) {
-                    base2 = lines.get(j);
-                    b2 = getUnsignedAngleInDegree(base2);
-
-                    if (Math.abs(b1 - b2) <= angle_step) {
-                        holder = new LineHolder();
-                        if (b1 > 45 && b2 > 45) { // left, right
-                            if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
-                                holder.left = base1;
-                                holder.right = base2;
-                            } else {
-                                holder.left = base2;
-                                holder.right = base1;
-                            }
-                            verticals.add(holder);
-                        } else if (b1 <= 45 && b2 <= 45) { // top, bottom
-                            if (base1.calculateCentroid().getY() < base2.calculateCentroid().getY()) {
-                                holder.top = base1;
-                                holder.bottom = base2;
-                            } else {
-                                holder.top = base2;
-                                holder.bottom = base1;
-                            }
-                            horizontals.add(holder);
+                if (Math.abs(b1 - b2) <= Constants.ANGLE_DIFF_THRESHOLD) {
+                    holder = new LineHolder();
+                    if (b1 > 45 && b2 > 45) { // left, right
+                        if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
+                            holder.left = base1;
+                            holder.right = base2;
                         } else {
-                            if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
-                                holder.left = base1;
-                                holder.right = base2;
-                            } else {
-                                holder.left = base2;
-                                holder.right = base1;
-                            }
-                            verticals.add(holder);
-
-                            if (base1.calculateCentroid().getY() < base2.calculateCentroid().getY()) {
-                                holder.top = base1;
-                                holder.bottom = base2;
-                            } else {
-                                holder.top = base2;
-                                holder.bottom = base1;
-                            }
-                            horizontals.add(holder);
+                            holder.left = base2;
+                            holder.right = base1;
                         }
+                        verticals.add(holder);
+                    } else if (b1 <= 45 && b2 <= 45) { // top, bottom
+                        if (base1.calculateCentroid().getY() < base2.calculateCentroid().getY()) {
+                            holder.top = base1;
+                            holder.bottom = base2;
+                        } else {
+                            holder.top = base2;
+                            holder.bottom = base1;
+                        }
+                        horizontals.add(holder);
+                    } else {
+                        if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
+                            holder.left = base1;
+                            holder.right = base2;
+                        } else {
+                            holder.left = base2;
+                            holder.right = base1;
+                        }
+                        verticals.add(holder);
+
+                        if (base1.calculateCentroid().getY() < base2.calculateCentroid().getY()) {
+                            holder.top = base1;
+                            holder.bottom = base2;
+                        } else {
+                            holder.top = base2;
+                            holder.bottom = base1;
+                        }
+                        horizontals.add(holder);
                     }
                 }
             }
-
-            double a_l, a_t, a_r, a_b;
-            boolean isValidAngle = false;
-
-            for (LineHolder v : verticals) {
-                for (LineHolder h : horizontals) {
-                    a_l = DetectorUtils.getSignedAngleInDegree(v.left);
-                    a_t = DetectorUtils.getSignedAngleInDegree(h.top);
-                    a_r = DetectorUtils.getSignedAngleInDegree(v.right);
-                    a_b = DetectorUtils.getSignedAngleInDegree(h.bottom);
-
-                    isValidAngle = DetectorUtils.calcAngleDiffInDegree(a_l, a_t) >= 60
-                            || DetectorUtils.calcAngleDiffInDegree(a_l, a_b) >= 60
-                            || DetectorUtils.calcAngleDiffInDegree(a_r, a_t) >= 60
-                            || DetectorUtils.calcAngleDiffInDegree(a_r, a_b) >= 60;
-
-                    if (isValidAngle) {
-                        LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
-                        System.out.println("Checking " + lh.toString());
-                        lh.compute(width, height);
-                        if (lh.isSatisfyingShape()) {
-                            res.add(lh);
-                            System.out.println("Accepted");
-                        }
-                    }
-                }
-            }
-            System.out.println("Detected " + res.size() + " bounds");
-            angle_step += 10;
         }
+
+        double a_l, a_t, a_r, a_b;
+        boolean isValidAngle = false;
+
+        for (LineHolder v : verticals) {
+            for (LineHolder h : horizontals) {
+                a_l = DetectorUtils.getSignedAngleInDegree(v.left);
+                a_t = DetectorUtils.getSignedAngleInDegree(h.top);
+                a_r = DetectorUtils.getSignedAngleInDegree(v.right);
+                a_b = DetectorUtils.getSignedAngleInDegree(h.bottom);
+
+                isValidAngle = DetectorUtils.calcAngleDiffInDegree(a_l, a_t) >= 60
+                        || DetectorUtils.calcAngleDiffInDegree(a_l, a_b) >= 60
+                        || DetectorUtils.calcAngleDiffInDegree(a_r, a_t) >= 60
+                        || DetectorUtils.calcAngleDiffInDegree(a_r, a_b) >= 60;
+
+                if (isValidAngle) {
+                    LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
+                    System.out.println("Checking " + lh.toString());
+                    lh.compute(width, height);
+                    if (lh.isSatisfyingShape()) {
+                        res.add(lh);
+                        System.out.println("Accepted");
+                    }
+                }
+            }
+        }
+        System.out.println("Detected " + res.size() + " bounds");
+
         if (res.isEmpty())
             return res;
 

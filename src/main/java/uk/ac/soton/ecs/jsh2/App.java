@@ -18,7 +18,7 @@ public class App {
 
     public static void main(String[] args) throws IOException {
         testDetectBox();
-//        BoundDetector.detectBound(new File(WINDOW_DIR+"/20191227_084121.jpg"), new File(WINDOW_OUT_DIR), true);
+//        BoundDetector.detectBound(new File(WINDOW_DIR+"/20191227_084126.jpg"), new File(WINDOW_OUT_DIR), true);
     }
 
     private static void testDetectBox() throws IOException {
