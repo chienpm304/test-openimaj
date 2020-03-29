@@ -80,17 +80,20 @@ public class LineHolder implements Comparable<LineHolder> {
 
     @Override
     public String toString() {
-        return "LineHolder{ [" +
-                Math.round(DetectorUtils.getUnsignedAngleInDegree(left))+
-                ", " + Math.round(DetectorUtils.getUnsignedAngleInDegree(right))+
-                "] [" + Math.round(DetectorUtils.getUnsignedAngleInDegree(top)) +
-                ", " + Math.round(DetectorUtils.getUnsignedAngleInDegree(bottom)) +
-//                "] top=" + left +
-//                ", bottom=" + right +
-//                ", left=" + top +
-//                ", right=" + bottom +
-//                ", rank=" + rank +
-                '}';
+        StringBuilder st = new StringBuilder("LineHolder{ [");
+        if(left!=null)
+            st.append(Math.round(DetectorUtils.getUnsignedAngleInDegree(left)));
+        st.append(", ");
+        if(right!=null)
+            st.append(Math.round(DetectorUtils.getUnsignedAngleInDegree(right)));
+        st.append("] [");
+        if(top!=null)
+            st.append(Math.round(DetectorUtils.getUnsignedAngleInDegree(top)));
+        st.append(", ");
+        if(bottom!=null)
+            st.append(Math.round(DetectorUtils.getUnsignedAngleInDegree(bottom)));
+        st.append("]}");
+        return st.toString();
     }
 
     public Tetragram getBounding2(int width, int height) {

@@ -219,7 +219,7 @@ public class BoundDetector {
         int angle_step = 20;
 
         // find vertical line (left, right)
-        while (verticals.isEmpty() && angle_step <= Constants.ANGLE_DIFF_THRESHOLD) {
+        while (res.isEmpty() && angle_step <= Constants.ANGLE_DIFF_THRESHOLD+15) {
 
             for (int i = 0; i < lines.size() - 1; i++) {
 
@@ -250,7 +250,7 @@ public class BoundDetector {
                                 holder.bottom = base1;
                             }
                             horizontals.add(holder);
-                        }else{
+                        } else {
                             if (base1.calculateCentroid().getX() < base2.calculateCentroid().getX()) {
                                 holder.left = base1;
                                 holder.right = base2;
@@ -272,37 +272,36 @@ public class BoundDetector {
                     }
                 }
             }
-            angle_step += 5;
-        }
 
-        double a_l, a_t, a_r, a_b;
-        boolean isValidAngle = false;
+            double a_l, a_t, a_r, a_b;
+            boolean isValidAngle = false;
 
-        for (LineHolder v : verticals) {
-            for (LineHolder h : horizontals) {
-                a_l = DetectorUtils.getSignedAngleInDegree(v.left);
-                a_t = DetectorUtils.getSignedAngleInDegree(h.top);
-                a_r = DetectorUtils.getSignedAngleInDegree(v.right);
-                a_b = DetectorUtils.getSignedAngleInDegree(h.bottom);
+            for (LineHolder v : verticals) {
+                for (LineHolder h : horizontals) {
+                    a_l = DetectorUtils.getSignedAngleInDegree(v.left);
+                    a_t = DetectorUtils.getSignedAngleInDegree(h.top);
+                    a_r = DetectorUtils.getSignedAngleInDegree(v.right);
+                    a_b = DetectorUtils.getSignedAngleInDegree(h.bottom);
 
-                isValidAngle = DetectorUtils.calcAngleDiffInDegree(a_l, a_t) >= 60
-                        || DetectorUtils.calcAngleDiffInDegree(a_l, a_b) >= 60
-                        || DetectorUtils.calcAngleDiffInDegree(a_r, a_t) >= 60
-                        || DetectorUtils.calcAngleDiffInDegree(a_r, a_b) >= 60;
+                    isValidAngle = DetectorUtils.calcAngleDiffInDegree(a_l, a_t) >= 60
+                            || DetectorUtils.calcAngleDiffInDegree(a_l, a_b) >= 60
+                            || DetectorUtils.calcAngleDiffInDegree(a_r, a_t) >= 60
+                            || DetectorUtils.calcAngleDiffInDegree(a_r, a_b) >= 60;
 
-                if (isValidAngle) {
-                    LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
-                    System.out.println("Checking " + lh.toString());
-                    lh.compute(width, height);
-                    if (lh.isSatisfyingShape()) {
-                        res.add(lh);
-                        System.out.println("Accepted");
+                    if (isValidAngle) {
+                        LineHolder lh = new LineHolder(v.left, h.top, v.right, h.bottom);
+                        System.out.println("Checking " + lh.toString());
+                        lh.compute(width, height);
+                        if (lh.isSatisfyingShape()) {
+                            res.add(lh);
+                            System.out.println("Accepted");
+                        }
                     }
                 }
             }
+            System.out.println("Detected " + res.size() + " bounds");
+            angle_step += 10;
         }
-        System.out.println("Detected " + res.size() + " bounds");
-
         if (res.isEmpty())
             return res;
 
