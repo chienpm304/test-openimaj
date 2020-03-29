@@ -182,7 +182,7 @@ public class LineHolder implements Comparable<LineHolder> {
                 + right.calculateLength()
                 + top.calculateLength()
                 + bottom.calculateLength();
-        return gap < perimeter / 4f;
+        return gap < perimeter / 3f;
     }
 
     private boolean checkRawLines() {
