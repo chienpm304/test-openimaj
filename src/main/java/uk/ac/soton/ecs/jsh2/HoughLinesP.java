@@ -73,9 +73,8 @@ public class HoughLinesP {
         }
 
         // Shuffle the array randomly
-        Collections.shuffle(nonZeroPoints);
-
-
+//        if(Constants.HOUGH_LINE_SHUFFLE)
+//            Collections.shuffle(nonZeroPoints);
     }
 
     List<Line2d> getLines() {

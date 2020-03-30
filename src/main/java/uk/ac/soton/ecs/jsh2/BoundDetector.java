@@ -8,7 +8,6 @@ import org.openimaj.image.processing.algorithm.GammaCorrection;
 import org.openimaj.image.processing.convolution.FGaussianConvolve;
 import org.openimaj.image.processing.edges.CannyEdgeDetector;
 import org.openimaj.image.processing.resize.ResizeProcessor;
-import org.openimaj.image.typography.hershey.HersheyFont;
 import org.openimaj.math.geometry.line.Line2d;
 import org.openimaj.math.geometry.point.Point2d;
 import org.openimaj.math.geometry.point.Point2dImpl;
@@ -29,14 +28,13 @@ import static uk.ac.soton.ecs.jsh2.DetectorUtils.*;
 
 public class BoundDetector {
 
-    public static final int MAGIC_LOOP_TIMES = 3;
     private static int width;
     private static int height;
     private static float scaleFactor;
     static File mfout;
     static File mfin;
 
-    public static Tetragram detectBound(File fin, File fout, boolean shuffle) throws IOException {
+    public static LineHolder detectBound(File fin, File fout, boolean shuffle) throws IOException {
         System.out.println("processing " + fin.getName());
         mfout = fout;
         mfin = fin;
@@ -64,30 +62,62 @@ public class BoundDetector {
         removeNoiseLines(lines, Constants.MERGE_MAX_LINE_DISTANCE, Constants.MERGE_MAX_LINE_GAP - 20, Constants.MIN_ANGLE);
         saveToFile(fin, fout, frame, center, lines, true, "/merged/");
 
+
         List<LineHolder> bounds = findBounds3(lines);
-        if (!bounds.isEmpty()) {
-            for (LineHolder lh : bounds) {
-                Tetragram bound = lh.tetragram;
-                if (bound != null) {
-                    DrawUtils.drawBound(
-                            frame,
-                            center,
-                            bound.toLineList(),
-                            RGBColour.GREEN,
-                            RGBColour.YELLOW,
-                            RGBColour.BLUE,
-                            RGBColour.RED,
-                            true);
-                }
-            }
-            frame.drawText(bounds.size() + "", (int) center.getX(),
-                    (int) center.getY(),
-                    HersheyFont.ROMAN_DUPLEX,
-                    40,
-                    RGBColour.RED);
-        }
+
+        LineHolder bestQuad = getTheBestLineHolder(bounds);
+        if(bestQuad!=null)
+            DrawUtils.drawBound(frame, center, bestQuad.tetragram.toLineList(), RGBColour.GREEN, RGBColour.GREEN, RGBColour.GREEN, RGBColour.GREEN, false);
+
+//        if (!bounds.isEmpty()) {
+//            for (LineHolder lh : bounds) {
+//                Tetragram bound = lh.tetragram;
+//                if (bound != null) {
+//                    DrawUtils.drawBound(
+//                            frame,
+//                            center,
+//                            bound.toLineList(),
+//                            RGBColour.GREEN,
+//                            RGBColour.YELLOW,
+//                            RGBColour.BLUE,
+//                            RGBColour.RED,
+//                            true);
+//                }
+//            }
+//            frame.drawText(bounds.size() + "", (int) center.getX(),
+//                    (int) center.getY(),
+//                    HersheyFont.ROMAN_DUPLEX,
+//                    40,
+//                    RGBColour.RED);
+//        }
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
         return null;
+    }
+
+    private static LineHolder getTheBestLineHolder(List<LineHolder> bounds) {
+        if(bounds==null || bounds.isEmpty())
+            return null;
+
+
+        Comparator<LineHolder> comparator = Comparator.comparingDouble(lh->lh.area);
+        bounds.sort(comparator.reversed());
+
+        /**
+         * Find the lineholder which has the largest area and smallest gap
+         * Allowed area threshold: 65%
+         */
+        int idx = 0;
+        double minGap = bounds.get(0).gap;
+
+        for (int i = 1; i < bounds.size(); i++) {
+            if (bounds.get(i).gap < minGap
+                    && bounds.get(i).area >= bounds.get(idx).area * Constants.AREA_THRESHOLD_RATIO) {
+                minGap = bounds.get(i).gap;
+                idx = i;
+            }
+        }
+
+        return bounds.get(idx);
     }
 
     private static void saveToFile(File fin, File fout, MBFImage frame, Point2dImpl center, List<Line2d> lines, boolean isDrawAngle, String s) throws IOException {
@@ -215,7 +245,6 @@ public class BoundDetector {
 
         ArrayList<LineHolder> verticals = new ArrayList<>();
         ArrayList<LineHolder> horizontals = new ArrayList<>();
-        // paring
         ArrayList<LineHolder> res = new ArrayList<>();
 
         LineHolder holder;
@@ -302,31 +331,7 @@ public class BoundDetector {
         }
         System.out.println("Detected " + res.size() + " bounds");
 
-        if (res.isEmpty())
-            return res;
-
-        Collections.sort(res, new Comparator<LineHolder>() {
-            @Override
-            public int compare(LineHolder o1, LineHolder o2) {
-                return Double.compare(o2.area, o1.area); //reserved
-            }
-        });
-
-        /**
-         * Nếu có rất nhiều bounds thì chọn bound lớn nhất, it bound thì duyệt chọn bound nhỏ nhưng ngon
-         * hoặc là chọn 2 thằng lớn nhất ra so sánh gap
-         *
-         */
-        int idx = 0;
-        double min = res.get(0).gap;
-//        for (int i = 1; i < 5 && i < res.size(); i++) {
-//            if (res.get(i).gap < min
-//                    && res.get(i).area > res.get(idx).area * 0.8) {
-//                min = res.get(i).gap;
-//                idx = i;
-//            }
-//        }
-        return res;//.get(idx).tetragram;
+        return res;
     }
 
     private static void removeLinesNearbyBounding(List<Line2d> lines, int threshold) {
@@ -357,7 +362,7 @@ public class BoundDetector {
             tmpLines.clear();
             l1 = lines.get(i);
             tmpLines.add(l1);
-            for (int k = 0; k < MAGIC_LOOP_TIMES; k++) {
+            for (int k = 0; k < Constants.MAGIC_LOOP_TIMES; k++) {
                 for (int j = i + 1; j < lines.size(); j++) {
                     l2 = lines.get(j);
                     if (!tmpLines.contains(l2)
@@ -470,7 +475,7 @@ public class BoundDetector {
         Line2d l1, l2;
         int idx;
 
-        for (int k = 0; k < MAGIC_LOOP_TIMES; k++) {
+        for (int k = 0; k < Constants.MAGIC_LOOP_TIMES; k++) {
             for (int i = 0; i < lines.size(); i++) {
                 l1 = lines.get(i);
                 while ((idx = findClosestLineByLineGap(lines, l1, maxLineGap)) != -1) {

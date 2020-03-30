@@ -7,7 +7,11 @@ package uk.ac.soton.ecs.jsh2;
 
 public class Constants {
 
-    public static final int ANGLE_DIFF_THRESHOLD = 60;
+    static final int ANGLE_DIFF_THRESHOLD = 60;
+    static final int MAGIC_LOOP_TIMES = 3;
+
+    static final double AREA_THRESHOLD_RATIO = 0.65;
+
     private static final float MAGIC_RATIO = (360f / 720f);
 
     static final float STANDARD_WIDTH = 720 * MAGIC_RATIO;
@@ -22,6 +26,7 @@ public class Constants {
     static final double HOUGH_LINE_RHO = 1;
     static final double HOUGH_LINE_THETA = Math.PI / 180d;
 
+    static final boolean HOUGH_LINE_SHUFFLE = false;
     static final int HOUGH_LINE_MAX_LINE_GAP = 10;
     static final int HOUGH_LINE_THRESHOLD = (int) (20 * MAGIC_RATIO);
     static final int HOUGH_MIN_LINE_LENGTH = (int) (20 * MAGIC_RATIO);
