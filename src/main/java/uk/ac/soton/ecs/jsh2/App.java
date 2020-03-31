@@ -19,11 +19,13 @@ public class App {
     public static final String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
     public static void main(String[] args) throws IOException {
-//        testDetectBox();
+        testDetectBox();
 //        BoundDetector.detectBound(new File(WINDOW_DIR+"/20191227_084126.jpg"), new File(WINDOW_OUT_DIR), true);
 //        generateColorImage();
 //        writeHex();
-        writeRGB();
+//        writeRGB();
+//        compare(new File("D:/magic_color/cropped/2.jpg"),new File("D:/magic_color/cropped/3.jpg"));
+
     }
 
     private static void writeRGB() throws IOException {
@@ -32,40 +34,45 @@ public class App {
         csvWriter.append("rin,gin,bin,rout,gout,bout,\n");
 
 
-        for (int k = 0; k <= 3; k++) {
-            MBFImage frameIn = ImageUtilities.readMBF(new File("D:/magic_color/in/" + k + ".jpg"));
-            MBFImage frameOut = ImageUtilities.readMBF(new File("D:/magic_color/out/" + k + ".jpg"));
+//        for (int k = 0; k <= 3; k++) {
+        MBFImage frameIn = ImageUtilities.readMBF(new File("D:/magic_color/in/full.jpg"));
+        MBFImage frameOut = ImageUtilities.readMBF(new File("D:/magic_color/out/full.jpg"));
 
-            float[][] rin = frameIn.getBand(0).pixels;
-            float[][] gin = frameIn.getBand(1).pixels;
-            float[][] bin = frameIn.getBand(2).pixels;
+//            DisplayUtilities.display(frameIn);
+//            DisplayUtilities.display(frameOut);
 
-
-            float[][] rout = frameOut.getBand(0).pixels;
-            float[][] gout = frameOut.getBand(1).pixels;
-            float[][] bout = frameOut.getBand(2).pixels;
+        float[][] rin = frameIn.getBand(0).pixels;
+        float[][] gin = frameIn.getBand(1).pixels;
+        float[][] bin = frameIn.getBand(2).pixels;
 
 
-            int height = frameIn.getHeight();
-            int width = frameIn.getWidth();
+        float[][] rout = frameOut.getBand(0).pixels;
+        float[][] gout = frameOut.getBand(1).pixels;
+        float[][] bout = frameOut.getBand(2).pixels;
 
-            int redo, greeno, blueo, redi, greeni, bluei;
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    redi = (int) (rin[y][x] * 255);
-                    greeni = (int) (gin[y][x] * 255);
-                    bluei = (int) (bin[y][x] * 255);
+        if (frameIn.getWidth() != frameOut.getWidth() || frameIn.getHeight() != frameOut.getHeight())
+            throw new RuntimeException("input and output not match!");
 
-                    redo = (int) (rout[y][x] * 255);
-                    greeno = (int) (gout[y][x] * 255);
-                    blueo = (int) (bout[y][x] * 255);
-                    csvWriter.append(String.join(",",
-                            String.valueOf(redi), String.valueOf(greeni), String.valueOf(bluei),
-                            String.valueOf(redo), String.valueOf(greeno), String.valueOf(blueo), "\n"));
+        int height = frameIn.getHeight();
+        int width = frameIn.getWidth();
 
-                }
+        int redo, greeno, blueo, redi, greeni, bluei;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                redi = (int) (rin[y][x] * 255);
+                greeni = (int) (gin[y][x] * 255);
+                bluei = (int) (bin[y][x] * 255);
+
+                redo = (int) (rout[y][x] * 255);
+                greeno = (int) (gout[y][x] * 255);
+                blueo = (int) (bout[y][x] * 255);
+                csvWriter.append(String.join(",",
+                        String.valueOf(redi), String.valueOf(greeni), String.valueOf(bluei),
+                        String.valueOf(redo), String.valueOf(greeno), String.valueOf(blueo), "\n"));
+
             }
         }
+//        }
 
 
         csvWriter.flush();
@@ -76,45 +83,45 @@ public class App {
 
     private static void writeHex() throws IOException {
 
-        FileWriter csvWriter = new FileWriter("D:/magic_color/data.csv");
+        FileWriter csvWriter = new FileWriter("D:/magic_color/data_hex_full.csv");
         csvWriter.append("in, out,\n");
 
 
-        for (int k = 0; k <= 3; k++) {
-            MBFImage frameIn = ImageUtilities.readMBF(new File("D:/magic_color/in/" + k + ".jpg"));
-            MBFImage frameOut = ImageUtilities.readMBF(new File("D:/magic_color/out/" + k + ".jpg"));
+//        for (int k = 0; k <= 0; k++) {
+        MBFImage frameIn = ImageUtilities.readMBF(new File("D:/magic_color/in/full.jpg"));
+        MBFImage frameOut = ImageUtilities.readMBF(new File("D:/magic_color/out/full.jpg"));
 
-            float[][] rin = frameIn.getBand(0).pixels;
-            float[][] gin = frameIn.getBand(1).pixels;
-            float[][] bin = frameIn.getBand(2).pixels;
-
-
-            float[][] rout = frameOut.getBand(0).pixels;
-            float[][] gout = frameOut.getBand(1).pixels;
-            float[][] bout = frameOut.getBand(2).pixels;
+        float[][] rin = frameIn.getBand(0).pixels;
+        float[][] gin = frameIn.getBand(1).pixels;
+        float[][] bin = frameIn.getBand(2).pixels;
 
 
-            int height = frameIn.getHeight();
-            int width = frameIn.getWidth();
-
-            int red, green, blue, hexIn, hexOut;
-            for (int y = 0; y < height; ++y) {
-                for (int x = 0; x < width; ++x) {
-                    red = (int) (rin[y][x] * 255);
-                    green = (int) (gin[y][x] * 255);
-                    blue = (int) (bin[y][x] * 255);
-                    hexIn = (red * 65536) + (green * 256) + blue;
-
-                    red = (int) (rout[y][x] * 255);
-                    green = (int) (gout[y][x] * 255);
-                    blue = (int) (bout[y][x] * 255);
-                    hexOut = (red * 65536) + (green * 256) + blue;
+        float[][] rout = frameOut.getBand(0).pixels;
+        float[][] gout = frameOut.getBand(1).pixels;
+        float[][] bout = frameOut.getBand(2).pixels;
 
 
-                    csvWriter.append(String.join(",", String.valueOf(hexIn), String.valueOf(hexOut), "\n"));// String.valueOf(green), String.valueOf(blue), String.valueOf(hexIn),"\n"));//, green, blue, hex);
-                }
+        int height = frameIn.getHeight();
+        int width = frameIn.getWidth();
+
+        int red, green, blue, hexIn, hexOut;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                red = (int) (rin[y][x] * 255);
+                green = (int) (gin[y][x] * 255);
+                blue = (int) (bin[y][x] * 255);
+                hexIn = (red * 65536) + (green * 256) + blue;
+
+                red = (int) (rout[y][x] * 255);
+                green = (int) (gout[y][x] * 255);
+                blue = (int) (bout[y][x] * 255);
+                hexOut = (red * 65536) + (green * 256) + blue;
+
+
+                csvWriter.append(String.join(",", String.valueOf(hexIn), String.valueOf(hexOut), "\n"));// String.valueOf(green), String.valueOf(blue), String.valueOf(hexIn),"\n"));//, green, blue, hex);
             }
         }
+//        }
 
 
         csvWriter.flush();
@@ -144,7 +151,6 @@ public class App {
     }
 
     private static void generateColorImage() throws IOException {
-        int color = 0x000000;
         int height = 4096;
         int width = 4096;
 
@@ -156,10 +162,9 @@ public class App {
 
         int index = 0, x, y;
 
-        for (int b = 0; b < 256; b++) {
-
-            for (int r = 0; r < 256; r++) {
-                for (int g = 0; g < 256; g++) {
+        for (int r = 0; r < 256; r++) {
+            for (int g = 0; g < 256; g++) {
+                for (int b = 0; b < 256; b++) {
                     y = index / height;
                     x = index % width;
                     rband[y][x] = ImageUtilities.BYTE_TO_FLOAT_LUT[r];
@@ -170,22 +175,53 @@ public class App {
             }
         }
 
-//        for(int y = 0; y < height; ++y)
-//            for (int x = 0; x < width; ++x) {
-//                red = color >> 16 & 255;
-//                green = color >> 8 & 255;
-//                blue = color & 255;
-//                rband[y][x] = ImageUtilities.BYTE_TO_FLOAT_LUT[red];
-//                gband[y][x] = ImageUtilities.BYTE_TO_FLOAT_LUT[green];
-//                bband[y][x] = ImageUtilities.BYTE_TO_FLOAT_LUT[blue];
-//                color+=1;
-//            }
-//        }
 
-
-        ImageUtilities.write(image, new File("D:/detect/input/AZdoc/1.jpg"));
+        ImageUtilities.write(image, new File("D:/magic_color/2.jpg"));
         System.out.printf("done");
     }
 
+
+    static boolean compare(File file1, File file2) throws IOException {
+        MBFImage image1 = ImageUtilities.readMBF(file1);
+        MBFImage image2 = ImageUtilities.readMBF(file2);
+
+        FileWriter csvWriter = new FileWriter("D:/magic_color/compare_" + file1.getName() + "_" + file2.getName() + ".csv");
+        csvWriter.append("rin,gin,bin,rout,gout,bout,\n");
+
+
+        if (image1.getWidth() != image2.getWidth()
+                || image1.getHeight() != image2.getHeight())
+            return false;
+
+        int height = image1.getHeight();
+        int width = image1.getWidth();
+        float[][] rin = image1.getBand(0).pixels;
+        float[][] gin = image1.getBand(1).pixels;
+        float[][] bin = image1.getBand(2).pixels;
+
+
+        float[][] rout = image2.getBand(0).pixels;
+        float[][] gout = image2.getBand(1).pixels;
+        float[][] bout = image2.getBand(2).pixels;
+
+        int red, green, blue, hexIn, hexOut;
+        int redo, greeno, blueo, redi, greeni, bluei;
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                redi = (int) (rin[y][x] * 255);
+                greeni = (int) (gin[y][x] * 255);
+                bluei = (int) (bin[y][x] * 255);
+
+                redo = (int) (rout[y][x] * 255);
+                greeno = (int) (gout[y][x] * 255);
+                blueo = (int) (bout[y][x] * 255);
+                csvWriter.append(String.join(",",
+                        String.valueOf(redi), String.valueOf(greeni), String.valueOf(bluei),
+                        String.valueOf(redo), String.valueOf(greeno), String.valueOf(blueo), "\n"));
+
+            }
+        }
+        return true;
+    }
 
 }
