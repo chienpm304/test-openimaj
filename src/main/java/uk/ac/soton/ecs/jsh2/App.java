@@ -133,11 +133,22 @@ public class App {
     private static void testDetectBox() throws IOException {
         File fin = new File(WINDOW_DIR);
         File fout = new File(WINDOW_OUT_DIR);
-        if (fin.exists() && fin.isDirectory())
+        int size =0, successed=0;
+        if (fin.exists() && fin.isDirectory()) {
             for (final File file : fin.listFiles()) {
-                if (file.isFile())
-                    BoundDetector.detectBound(file, fout, true);
+                if (file.isFile()) {
+                    size++;
+                    if(BoundDetector.detectBound(file, fout)!=null){
+                        successed++;
+                    }
+
+                }
             }
+            System.out.println("--------------------");
+            System.out.println("RESULT: PASSED "+successed+"/"+size);
+        }else{
+            System.out.println("Input folder is not exist");
+        }
     }
 
     private static void testFilter(File fin, File fout) throws IOException {

@@ -79,13 +79,7 @@ public class DetectorUtils {
         return line.calculateHorizontalAngle() * 180 / PI;
     }
 
-//    static double calcHorizontalAngleDiff(Line2d l1, Line2d l2){
-//        double b1 = getHorizontalAngleInDegree(l1);
-//        double b2 = getHorizontalAngleInDegree(l2);
-//        return Math.abs(b1 - b2);
-//    }
-
-    public static double calcAngleDiffInDegree(double a1, double a2) {
+    static double calcAngleDiffInDegree(double a1, double a2) {
         double gap = 0;
         if (a1 * a2 >= 0)
             return Math.abs(a1 - a2);
@@ -116,7 +110,6 @@ public class DetectorUtils {
                         (l2.isOnLine(l1.begin, minDistance) && l2.isOnLine(l1.end, minDistance))
                                 && calcAngleDiffInDegree(getSignedAngleInDegree(l1), getSignedAngleInDegree(l2)) <= minAngle;
     }
-
 
     static void sortByYAxis(Line2d line) {
         if (line.begin.getY() > line.end.getY()) {

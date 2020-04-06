@@ -34,7 +34,7 @@ public class BoundDetector {
     static File mfout;
     static File mfin;
 
-    public static LineHolder detectBound(File fin, File fout, boolean shuffle) throws IOException {
+    public static LineHolder detectBound(File fin, File fout) throws IOException {
         System.out.println("processing " + fin.getName());
         mfout = fout;
         mfin = fin;
@@ -53,7 +53,7 @@ public class BoundDetector {
         ImageUtilities.write(edges, new File(fout.getAbsolutePath() + "/edged/" + fin.getName()));
 
 
-        List<Line2d> lines = getLinesUsingHoughTransformP(edges, shuffle);
+        List<Line2d> lines = getLinesUsingHoughTransformP(edges);
         saveToFile(fin, fout, frame, center, lines, false, "/raw_detected/");
         System.out.println("Before merge: " + lines.size());
 
@@ -66,7 +66,7 @@ public class BoundDetector {
         List<LineHolder> bounds = findBounds3(lines);
 
         LineHolder bestQuad = getTheBestLineHolder(bounds);
-        if(bestQuad!=null)
+        if (bestQuad != null)
             DrawUtils.drawBound(frame, center, bestQuad.tetragram.toLineList(), RGBColour.GREEN, RGBColour.GREEN, RGBColour.GREEN, RGBColour.GREEN, false);
 
 //        if (!bounds.isEmpty()) {
@@ -91,15 +91,15 @@ public class BoundDetector {
 //                    RGBColour.RED);
 //        }
         ImageUtilities.write(frame, new File(fout.getAbsolutePath() + "/out/" + fin.getName()));
-        return null;
+        return bestQuad;
     }
 
     private static LineHolder getTheBestLineHolder(List<LineHolder> bounds) {
-        if(bounds==null || bounds.isEmpty())
+        if (bounds == null || bounds.isEmpty())
             return null;
 
 
-        Comparator<LineHolder> comparator = Comparator.comparingDouble(lh->lh.area);
+        Comparator<LineHolder> comparator = Comparator.comparingDouble(lh -> lh.area);
         bounds.sort(comparator.reversed());
 
         /**
@@ -217,16 +217,11 @@ public class BoundDetector {
         return grey;
     }
 
-    private static List<Line2d> getLinesUsingHoughTransformP(FImage image, boolean shuffle) {
-        List<Point2d> points = new ArrayList<>();
-        for (int i = 0; i < image.width; i++)
-            for (int j = 0; j < image.height; j++) {
-                if (image.getPixel(i, j) > 0.5f)
-                    points.add(new Point2dImpl(i, j));
-            }
+    private static List<Line2d> getLinesUsingHoughTransformP(FImage image) {
 
-        if (shuffle)
-            Collections.shuffle(points);
+        List<Point2d> points = getEdgedPoints(image);
+
+        shuffle(points);
 
         HoughLinesP ht = new HoughLinesP(
                 points,
@@ -239,6 +234,38 @@ public class BoundDetector {
                 Constants.HOUGH_MIN_LINE_LENGTH,
                 Constants.HOUGH_MAX_NUM_LINE);
         return ht.getLines();
+    }
+
+    private static List<Point2d> getEdgedPoints(FImage image) {
+        List<Point2d> points = new ArrayList<>();
+        for (int i = 0; i < image.width; i++) {
+            for (int j = 0; j < image.height; j++) {
+                if (image.getPixel(i, j) > 0.5f)
+                    points.add(new Point2dImpl(i, j));
+            }
+        }
+        return points;
+    }
+
+    private static List<Point2d> shuffle(List<Point2d> points) {
+        int hashCode = Math.abs(points.hashCode());
+
+        int size = points.size();
+        System.out.println("hashcode|size: "+hashCode+"|"+size);
+        for (int i = size; i > 1; --i) {
+            int j = (hashCode / i) % size;
+            swap(points, i - 1, j);
+            System.out.print(" "+j);
+        }
+        System.out.println();
+
+        return points;
+    }
+
+    private static void swap(List<Point2d> points, int i, int j){
+        Point2d tmp = points.get(i);
+        points.set(i, points.get(j));
+        points.set(j, tmp);
     }
 
     private static List<LineHolder> findBounds3(List<Line2d> lines) {
