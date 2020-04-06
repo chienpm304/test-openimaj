@@ -19,13 +19,43 @@ public class App {
     public static final String LINUX_DIR_OUT = "/home/cpu11427/chienpm/WhitePaper/test-threshold/input/AZdoc/";
 
     public static void main(String[] args) throws IOException {
-        testDetectBox();
-//        BoundDetector.detectBound(new File(WINDOW_DIR+"/20191227_084126.jpg"), new File(WINDOW_OUT_DIR), true);
 //        generateColorImage();
 //        writeHex();
 //        writeRGB();
 //        compare(new File("D:/magic_color/cropped/2.jpg"),new File("D:/magic_color/cropped/3.jpg"));
+        genLUT();
+    }
 
+    private static void genLUT() throws IOException {
+        // Additional Info:
+        // Lookup texture is organised as 8x8 quads of 64x64 pixels representing all possible RGB colors:
+
+        int[] data = new int[512*512];
+        int color, red, green, blue;
+        for (int by = 0; by < 8; by++) {
+            for (int bx = 0; bx < 8; bx++) {
+                for (int g = 0; g < 64; g++) {
+                    for (int r = 0; r < 64; r++) {
+//                        image.setPixel(r + bx * 64, g + by * 64, qRgb((int)(r * 255.0 / 63.0 + 0.5),
+//                                                                            (int)(g * 255.0 / 63.0 + 0.5),
+//                                                                            (int)((bx + by * 8.0) * 255.0 / 63.0 + 0.5)));
+
+                        red = (int) (r * 255.0 / 63.0 + 0.5);
+                        green = (int) (g * 255.0 / 63.0 + 0.5);
+                        blue = (int) ((bx + by * 8.0) * 255.0 / 63.0 + 0.5);
+//                        System.out.println(red+", "+green+", "+blue);
+                        color = packRGB(red, green, blue);
+                        data[(r + bx * 64) + (g + by * 64) * 512] = color;
+                    }
+                }
+            }
+        }
+        MBFImage image = new MBFImage(data,512, 512);
+        ImageUtilities.write(image, new File("D:/magic_color/lut_512x512.jpg"));
+    }
+
+    private static int packRGB(int R, int G, int B) {
+        return (R*65536)+(G*256)+B;
     }
 
     private static void writeRGB() throws IOException {
